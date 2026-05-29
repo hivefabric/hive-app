@@ -7,10 +7,11 @@ import type {
   LLMProvider,
   CreateLLMProviderRequest,
   UserPreferences,
+  EnrolCombRequest,
+  EnrolCombResponse,
 } from './types';
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8090';
-const HONEYCOMB = import.meta.env.VITE_HONEYCOMB_URL || 'http://localhost:8080';
 
 function getToken(): string {
   return localStorage.getItem('hf_token') ?? '';
@@ -85,13 +86,33 @@ export async function describeCluster(): Promise<DescribeClusterResponse> {
   }
 }
 
-// ─── Nodes (Honeycomb) ───────────────────────────────────────────────────────
+// ─── Nodes ───────────────────────────────────────────────────────────────────
 
+// Routed through the gateway (GET /v1/me/combs) so auth is applied and the
+// response is scoped to combs owned by the authenticated tenant.
+// TODO: the gateway currently returns all online nodes unfiltered until the
+//       enrolment flow stamps owner_user_id on comb registration.
 export async function getNodes(): Promise<CombNode[]> {
-  const res = await fetch(`${HONEYCOMB}/api/nodes`, {
+  const res = await fetch(`${GATEWAY}/v1/me/combs`, {
     headers: authHeaders(),
   });
   return handleResponse<CombNode[]>(res);
+}
+
+// ─── Comb Enrolment ──────────────────────────────────────────────────────────
+
+export async function enrollComb(
+  name: string,
+  capabilities: string,
+  port: number,
+): Promise<EnrolCombResponse> {
+  const req: EnrolCombRequest = { name, capabilities, port };
+  const res = await fetch(`${GATEWAY}/v1/me/combs/enrol`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(req),
+  });
+  return handleResponse<EnrolCombResponse>(res);
 }
 
 // ─── LLM Providers ───────────────────────────────────────────────────────────

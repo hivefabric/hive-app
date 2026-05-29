@@ -92,3 +92,19 @@ export interface UserPreferences {
   frontier_fallback: boolean;
   max_execution_seconds: number;
 }
+
+// ─── Comb Enrolment ──────────────────────────────────────────────────────────
+
+export type CombCapabilities = 'llm' | 'docker' | 'both';
+
+export interface EnrolCombRequest {
+  name: string;
+  capabilities: string;
+  port: number;
+}
+
+export interface EnrolCombResponse {
+  command: string;
+  config_toml: string;
+  note: string;
+}

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Trash2, PlusCircle, Copy, Check, ExternalLink } from 'lucide-react';
+import { Trash2, PlusCircle, Copy, Check, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   getLLMProviders,
   createLLMProvider,
   deleteLLMProvider,
   getPreferences,
   updatePreferences,
+  enrollComb,
 } from '../api';
-import type { LLMProvider, UserPreferences, SensitivityLevel } from '../types';
+import type { LLMProvider, UserPreferences, SensitivityLevel, EnrolCombResponse } from '../types';
 
 // ─── LLM Providers tab ───────────────────────────────────────────────────────
 
@@ -450,9 +451,158 @@ function ApiKeyTab() {
   );
 }
 
+// ─── My Combs tab ─────────────────────────────────────────────────────────────
+
+function MyCombsTab() {
+  const [form, setForm] = useState({ name: '', capabilities: 'llm', port: 7072 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<EnrolCombResponse | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState(false);
+  const [showToml, setShowToml] = useState(false);
+
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await enrollComb(form.name, form.capabilities, form.port);
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate command');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCopyCmd() {
+    if (!result) return;
+    await navigator.clipboard.writeText(result.command);
+    setCopiedCmd(true);
+    setTimeout(() => setCopiedCmd(false), 2000);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: 600 }}>
+      <div>
+        <h2 className="text-title" style={{ marginBottom: 4 }}>Enrol a Comb</h2>
+        <p className="text-secondary" style={{ fontSize: 13 }}>
+          Register your own device as a comb in your hive. Fill in the details below to
+          generate a start command. Run it on any machine — the comb will appear in your
+          My Hive tab once it connects.
+        </p>
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div className="flex gap-3">
+          <div className="form-group" style={{ flex: 2 }}>
+            <label className="form-label">Name</label>
+            <input
+              className="input"
+              placeholder="my-comb"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Port</label>
+            <input
+              className="input"
+              type="number"
+              min={1024}
+              max={65535}
+              value={form.port}
+              onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Capabilities</label>
+          <select
+            className="select"
+            value={form.capabilities}
+            onChange={(e) => setForm((f) => ({ ...f, capabilities: e.target.value }))}
+          >
+            <option value="llm">LLM — language model inference</option>
+            <option value="docker">Docker — container workloads</option>
+            <option value="both">Both — LLM + Docker</option>
+          </select>
+        </div>
+
+        <div>
+          <button type="submit" className="btn btn--primary" disabled={loading}>
+            {loading ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} /> : null}
+            {loading ? 'Generating…' : 'Generate Command'}
+          </button>
+        </div>
+      </form>
+
+      {result && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <p className="form-hint" style={{ fontSize: 13, color: 'var(--color-success)' }}>
+            {result.note}
+          </p>
+
+          <div className="form-group">
+            <label className="form-label">Start command</label>
+            <div className="key-display" style={{ alignItems: 'flex-start', padding: 'var(--space-3)' }}>
+              <code style={{ fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-all', flex: 1 }}>
+                {result.command}
+              </code>
+              <button
+                className="btn btn--ghost btn--sm btn--icon"
+                onClick={handleCopyCmd}
+                title="Copy command"
+                style={{ flexShrink: 0, marginTop: 2 }}
+              >
+                {copiedCmd
+                  ? <Check size={13} style={{ color: 'var(--color-success)' }} />
+                  : <Copy size={13} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
+              onClick={() => setShowToml((v) => !v)}
+            >
+              {showToml ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              <span style={{ fontSize: 13 }}>View comb config (TOML)</span>
+            </button>
+            {showToml && (
+              <pre style={{
+                marginTop: 'var(--space-2)',
+                padding: 'var(--space-3)',
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                fontSize: 11,
+                lineHeight: 1.6,
+                overflowX: 'auto',
+                whiteSpace: 'pre',
+              }}>
+                {result.config_toml}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
-type SettingsTab = 'providers' | 'preferences' | 'apikey';
+type SettingsTab = 'providers' | 'preferences' | 'apikey' | 'mycombs';
 
 export default function SettingsView() {
   const [tab, setTab] = useState<SettingsTab>('providers');
@@ -470,6 +620,9 @@ export default function SettingsView() {
         <button className={`tab${tab === 'preferences' ? ' active' : ''}`} onClick={() => setTab('preferences')}>
           Preferences
         </button>
+        <button className={`tab${tab === 'mycombs' ? ' active' : ''}`} onClick={() => setTab('mycombs')}>
+          My Combs
+        </button>
         <button className={`tab${tab === 'apikey' ? ' active' : ''}`} onClick={() => setTab('apikey')}>
           API Key
         </button>
@@ -477,6 +630,7 @@ export default function SettingsView() {
 
       {tab === 'providers' && <ProvidersTab />}
       {tab === 'preferences' && <PreferencesTab />}
+      {tab === 'mycombs' && <MyCombsTab />}
       {tab === 'apikey' && <ApiKeyTab />}
     </div>
   );
