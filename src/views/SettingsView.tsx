@@ -438,32 +438,37 @@ function PrivacyTab() {
             <div>
               <div className="settings-pref-label">
                 Pool share
+                {prefs.tier !== 'premium' && (
+                  <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(249,171,0,0.15)', color: '#E37400', border: '1px solid #E37400' }}>Free · min 50%</span>
+                )}
                 {prefs.tier === 'premium' && (
-                  <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(255,193,7,0.15)', color: '#E37400', border: '1px solid #E37400' }}>Premium</span>
+                  <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(11,87,208,0.1)', color: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}>Premium · full control</span>
                 )}
               </div>
               <div className="text-secondary" style={{ fontSize: 13 }}>
                 {prefs.tier === 'premium'
-                  ? `${prefs.pool_share_pct ?? 50}% of worker slots offered to pool (minimum 50% for Premium)`
-                  : `${prefs.pool_share_pct ?? 0}% of worker slots offered to pool`}
+                  ? `${prefs.pool_share_pct ?? 0}% of worker slots offered to pool`
+                  : `${prefs.pool_share_pct ?? 50}% of worker slots offered to pool (Free tier minimum: 50%)`}
               </div>
             </div>
             {prefs.tier === 'premium' ? (
+              // Premium: full range 0–100%
               <input
-                type="range" min={50} max={100} value={prefs.pool_share_pct ?? 50}
+                type="range" min={0} max={100} value={prefs.pool_share_pct ?? 0}
                 onChange={(e) => set('pool_share_pct', +e.target.value)}
                 style={{ width: 120 }}
               />
             ) : (
+              // Free tier: locked at 50–100% minimum
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                 <input
-                  type="range" min={0} max={100} value={prefs.pool_share_pct ?? 0}
+                  type="range" min={50} max={100} value={Math.max(50, prefs.pool_share_pct ?? 50)}
                   onChange={(e) => set('pool_share_pct', +e.target.value)}
                   style={{ width: 120 }}
                 />
-                {(prefs.pool_share_pct ?? 0) > 0 && (prefs.pool_share_pct ?? 0) < 50 && (
+                {(prefs.pool_share_pct ?? 50) <= 50 && (
                   <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                    Upgrade to Premium to lock min 50%
+                    Upgrade to Premium for full control
                   </span>
                 )}
               </div>
