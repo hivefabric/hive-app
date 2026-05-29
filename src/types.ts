@@ -17,6 +17,14 @@ export interface ChatMessage {
   status?: 'sending' | 'queued' | 'running' | 'succeeded' | 'failed';
 }
 
+export interface ChatSession {
+  id: string;
+  title: string;          // first user message, truncated to 40 chars
+  messages: ChatMessage[];
+  created_at: number;
+  updated_at: number;
+}
+
 export interface RunSubagentRequest {
   prompt: string;
   capability_urn?: string;
