@@ -91,22 +91,44 @@ function StepComb({
               <CheckCircle size={16} />
               {combs.length} comb{combs.length > 1 ? 's' : ''} online
             </div>
-            {combs.slice(0, 3).map(c => (
-              <div key={c.node_id} className="wizard-comb-card">
-                <Server size={14} />
-                <div>
-                  <div className="wizard-comb-name">
-                    {c.node_metadata?.device_name || c.node_metadata?.hostname || c.node_id.slice(0, 12)}
+            {combs.slice(0, 3).map(c => {
+              const cellCount = (c.cells ?? []).length;
+              return (
+                <div key={c.node_id} className="wizard-comb-card">
+                  <Server size={14} />
+                  <div>
+                    <div className="wizard-comb-name">
+                      {c.node_metadata?.device_name || c.node_metadata?.hostname || c.node_id.slice(0, 12)}
+                    </div>
+                    <div className="text-secondary" style={{ fontSize: 12 }}>
+                      {(c.advertised_capability_urns ?? []).map(shortUrn).join(' · ')}
+                    </div>
+                    {cellCount > 0 ? (
+                      <div className="text-secondary" style={{ fontSize: 11, marginTop: 2 }}>
+                        {cellCount} cell{cellCount !== 1 ? 's' : ''} configured
+                      </div>
+                    ) : (
+                      <div className="text-secondary" style={{ fontSize: 11, marginTop: 2 }}>
+                        No cells configured — using auto-inference
+                      </div>
+                    )}
                   </div>
-                  <div className="text-secondary" style={{ fontSize: 12 }}>
-                    {(c.advertised_capability_urns ?? []).map(shortUrn).join(' · ')}
-                  </div>
+                  {c.queen_capable && (
+                    <span className="node-tag" style={{ marginLeft: 'auto', flexShrink: 0 }}>queen</span>
+                  )}
                 </div>
-                {c.queen_capable && (
-                  <span className="node-tag" style={{ marginLeft: 'auto', flexShrink: 0 }}>queen</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
+            <div style={{
+              padding: '8px 12px',
+              background: 'var(--color-surface-variant)',
+              borderRadius: 6,
+              fontSize: 12,
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.5,
+            }}>
+              Tip: configure <code style={{ fontFamily: 'monospace', fontSize: 11 }}>[[cells]]</code> in your comb config to control resource allocation per model.
+            </div>
             <button className="btn btn--ghost btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowInstall(!showInstall)}>
               <Terminal size={13} /> Add another comb
             </button>

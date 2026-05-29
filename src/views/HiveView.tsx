@@ -111,6 +111,23 @@ function NodeCard({ node }: { node: CombNode }) {
         </div>
       )}
 
+      {(node.cells ?? []).length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+          {(node.cells ?? []).map(c => (
+            <div key={c.name} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '4px 10px', borderRadius: 6, fontSize: 11,
+              border: `1px solid ${c.role === 'queen' ? 'var(--color-primary)' : c.role === 'wasm' ? '#E37400' : '#1E8E3E'}`,
+              background: c.role === 'queen' ? 'rgba(11,87,208,0.07)' : c.role === 'wasm' ? 'rgba(249,171,0,0.07)' : 'rgba(30,142,62,0.07)',
+            }}>
+              <span style={{ fontWeight: 600, minWidth: 70 }}>{c.name}</span>
+              <span style={{ flex: 1, color: 'var(--color-text-secondary)' }}>{c.model ?? c.role}</span>
+              <span style={{ color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>×{c.max_concurrent} · {c.reserved_gb}GB</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {node.roles?.includes('Admin') && (
         <div style={{ marginTop: 8 }}>
           <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#fce8e6', color: '#c5221f' }}>Admin</span>

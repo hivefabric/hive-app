@@ -32,6 +32,31 @@ export interface ToolCallResponse {
   isError?: boolean;
 }
 
+// ─── Cells ───────────────────────────────────────────────────────────────────
+
+export interface CellView {
+  name: string;
+  role: 'queen' | 'worker' | 'wasm';
+  model?: string | null;
+  capability_urn: string;
+  max_concurrent: number;
+  reserved_gb: number;
+}
+
+export interface ModelEntry {
+  id: string;
+  display_name: string;
+  ollama_name: string;
+  capability_urn: string;
+  size_gb: number;
+  min_ram_gb: number;
+  min_cores: number;
+  queen_eligible: boolean;
+  supports_tools: boolean;
+  tier: string;
+  notes: string;
+}
+
 // ─── Nodes ───────────────────────────────────────────────────────────────────
 
 /** Shape returned by GET /v1/me/combs (mirrors honeycomb NodeView) */
@@ -65,6 +90,7 @@ export interface CombNode {
   advertised_capability_urns?: string[];
   queen_capable?: boolean;
   roles?: string[];
+  cells?: CellView[];
 }
 
 // ─── Models / Capabilities ───────────────────────────────────────────────────

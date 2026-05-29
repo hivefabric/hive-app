@@ -97,6 +97,15 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
                   <div className="text-secondary" style={{ fontSize: 12 }}>
                     {(c.advertised_capability_urns ?? []).map(shortUrn).join(' · ')}
                   </div>
+                  {c.cells && c.cells.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                      {c.cells.map(cell => (
+                        <span key={cell.name} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-surface-variant)', color: 'var(--color-text-secondary)' }}>
+                          {cell.name} ({cell.model ?? cell.role})
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className={`badge badge--${c.online ? 'success' : 'muted'}`}>
                   {c.online ? 'Online' : 'Offline'}
