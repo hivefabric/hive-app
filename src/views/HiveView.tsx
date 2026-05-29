@@ -1,147 +1,224 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, PlusCircle, X, Thermometer, Cpu, MemoryStick, Battery } from 'lucide-react';
+import { RefreshCw, PlusCircle, Cpu, MemoryStick, Battery, Clock, Network } from 'lucide-react';
 import { getNodes } from '../api';
 import type { CombNode } from '../types';
 
-function statusBadgeClass(status: CombNode['status']) {
-  if (status === 'online') return 'badge badge--success';
-  if (status === 'degraded') return 'badge badge--warning';
-  return 'badge badge--error';
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function thermalBadgeClass(thermal: CombNode['thermal_status']) {
-  if (thermal === 'nominal') return 'badge badge--success';
-  if (thermal === 'warm') return 'badge badge--warning';
-  if (thermal === 'hot') return 'badge badge--warning';
-  return 'badge badge--error';
-}
-
-function barClass(pct: number) {
+function barColorClass(pct: number) {
   if (pct >= 90) return 'stat-bar-fill stat-bar-fill--danger';
   if (pct >= 70) return 'stat-bar-fill stat-bar-fill--warn';
   return 'stat-bar-fill';
 }
 
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+/** Extract a short human-readable label from a capability URN.
+ *  e.g. "urn:hivefabric:llm:qwen3.6:v1" → "qwen3.6"
+ *  Falls back to last path segment or the raw URN truncated. */
+function shortUrn(urn: string): string {
+  const parts = urn.split(':');
+  // Try the segment just before the last one (version) — usually the model name
+  if (parts.length >= 4) return parts[parts.length - 2];
+  const slashParts = urn.split('/');
+  const seg = slashParts[slashParts.length - 1] ?? urn;
+  return seg.length > 20 ? seg.slice(-20) : seg;
+}
+
+// ─── NodeCard ─────────────────────────────────────────────────────────────────
+
 function NodeCard({ node }: { node: CombNode }) {
+  const cpuPct = node.cpu_usage_percent ?? 0;
+  const memPct = node.memory_usage_percent ?? 0;
+  const battPct = node.battery_percent;
+  const hostname = node.node_metadata?.hostname ?? node.node_metadata?.device_name ?? null;
+  const shortId = node.node_id.slice(0, 8);
+  const cpuTemp = node.sensor_readings?.['cpu_temp_c'];
+  const thermalState = node.node_report?.power?.thermal_state;
+  const urns = node.advertised_capability_urns ?? [];
+  const runtimeCaps = node.runtime_capabilities ?? [];
+
   return (
-    <div className="card">
-      <div className="card-header">
-        <div>
-          <div className="card-title">{node.name}</div>
-          <div className="card-subtitle" style={{ marginTop: 4 }}>
-            {node.id}
+    <div
+      className="card"
+      style={{
+        borderTop: `3px solid ${node.online ? 'var(--color-success)' : 'var(--color-border)'}`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-3)',
+      }}
+    >
+      {/* Header */}
+      <div className="card-header" style={{ marginBottom: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            {/* Online pulse dot */}
+            {node.online ? (
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: 'var(--color-success)',
+                boxShadow: '0 0 0 2px rgba(30,142,62,0.25)',
+                flexShrink: 0,
+                animation: 'hive-pulse 2s ease-in-out infinite',
+              }} />
+            ) : (
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: 'var(--color-text-disabled)',
+                flexShrink: 0,
+              }} />
+            )}
+            <span className="card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {node.node_metadata?.device_name ?? shortId}
+            </span>
           </div>
+          {hostname && (
+            <div className="card-subtitle" style={{ fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+              {shortId} · {hostname}
+            </div>
+          )}
+          {!hostname && (
+            <div className="card-subtitle" style={{ fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+              {node.node_id}
+            </div>
+          )}
         </div>
-        <span className={statusBadgeClass(node.status)}>
-          {node.status}
-        </span>
+
+        {/* Active tasks badge */}
+        {node.active_tasks > 0 && (
+          <span
+            className="badge badge--info"
+            style={{ flexShrink: 0, marginLeft: 'var(--space-2)' }}
+            title="Active tasks"
+          >
+            <Network size={10} style={{ marginRight: 2 }} />
+            {node.active_tasks}
+          </span>
+        )}
       </div>
 
+      {/* Metric bars */}
       <div className="stat-row">
         <div className="stat-item">
           <Cpu size={13} style={{ flexShrink: 0, color: 'var(--color-text-secondary)' }} />
           <span className="stat-label">CPU</span>
           <div className="stat-bar-track">
-            <div className={barClass(node.cpu_pct)} style={{ width: `${node.cpu_pct}%` }} />
+            <div className={barColorClass(cpuPct)} style={{ width: `${cpuPct}%` }} />
           </div>
-          <span className="stat-val">{node.cpu_pct}%</span>
+          <span className="stat-val">{Math.round(cpuPct)}%</span>
         </div>
 
         <div className="stat-item">
           <MemoryStick size={13} style={{ flexShrink: 0, color: 'var(--color-text-secondary)' }} />
           <span className="stat-label">Memory</span>
           <div className="stat-bar-track">
-            <div className={barClass(node.memory_pct)} style={{ width: `${node.memory_pct}%` }} />
+            <div className={barColorClass(memPct)} style={{ width: `${memPct}%` }} />
           </div>
-          <span className="stat-val">{node.memory_pct}%</span>
+          <span className="stat-val">{Math.round(memPct)}%</span>
         </div>
 
-        {node.battery_pct !== undefined && (
+        {battPct != null && (
           <div className="stat-item">
             <Battery size={13} style={{ flexShrink: 0, color: 'var(--color-text-secondary)' }} />
             <span className="stat-label">Battery</span>
             <div className="stat-bar-track">
               <div
-                className={barClass(100 - node.battery_pct)}
-                style={{ width: `${node.battery_pct}%`, background: node.battery_pct < 20 ? 'var(--color-error)' : 'var(--color-success)' }}
+                className="stat-bar-fill"
+                style={{
+                  width: `${battPct}%`,
+                  background: battPct < 20 ? 'var(--color-error)' : 'var(--color-success)',
+                }}
               />
             </div>
-            <span className="stat-val">{node.battery_pct}%</span>
+            <span className="stat-val">{Math.round(battPct)}%</span>
           </div>
         )}
-
-        <div className="stat-item">
-          <Thermometer size={13} style={{ flexShrink: 0, color: 'var(--color-text-secondary)' }} />
-          <span className="stat-label">Thermal</span>
-          <span className={thermalBadgeClass(node.thermal_status)} style={{ marginLeft: 'auto' }}>
-            {node.thermal_status}
-          </span>
-        </div>
       </div>
 
-      {node.capabilities && node.capabilities.length > 0 && (
-        <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
-          {node.capabilities.map((cap) => (
-            <span key={cap} className="urn-code">{cap}</span>
-          ))}
+      {/* Thermal / temp info row */}
+      {(cpuTemp != null || thermalState) && (
+        <div style={{ display: 'flex', gap: 'var(--space-3)', fontSize: 11, color: 'var(--color-text-secondary)', alignItems: 'center' }}>
+          {cpuTemp != null && (
+            <span style={{ color: cpuTemp > 80 ? 'var(--color-warning)' : undefined }}>
+              {Math.round(cpuTemp)}°C
+            </span>
+          )}
+          {thermalState && thermalState !== 'nominal' && (
+            <span
+              className={
+                thermalState === 'critical' ? 'badge badge--error' :
+                thermalState === 'hot' ? 'badge badge--warning' :
+                'badge badge--warning'
+              }
+            >
+              {thermalState}
+            </span>
+          )}
         </div>
       )}
-    </div>
-  );
-}
 
-function RegisterSheet({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="sheet-overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-header">
-          <span className="sheet-title">Register a new Comb</span>
-          <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose}>
-            <X size={16} />
-          </button>
+      {/* Capability URN tags */}
+      {urns.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+          {urns.slice(0, 4).map((u) => (
+            <span key={u} className="urn-code" title={u} style={{ fontSize: 11 }}>
+              {shortUrn(u)}
+            </span>
+          ))}
+          {urns.length > 4 && (
+            <span className="urn-code" style={{ fontSize: 11 }}>+{urns.length - 4}</span>
+          )}
         </div>
+      )}
 
-        <p className="text-secondary">
-          Install the comb agent on any machine you want to add to your hive.
-          It will register automatically and appear here.
-        </p>
-
-        <div className="form-group">
-          <label className="form-label">Quick install (macOS / Linux)</label>
-          <div className="key-display">
-            <code className="key-display-value">
-              curl -sSL https://hivefabric.io/install | sh
-            </code>
-          </div>
+      {/* Runtime capability pills */}
+      {(node.docker || node.wasm || runtimeCaps.includes('llm')) && (
+        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+          {(runtimeCaps.includes('llm') || urns.length > 0) && (
+            <span style={{
+              fontSize: 10, padding: '2px 7px', borderRadius: 'var(--radius-full)',
+              background: '#D3E3FD', color: '#0B57D0', fontWeight: 600,
+            }}>LLM</span>
+          )}
+          {node.docker && (
+            <span style={{
+              fontSize: 10, padding: '2px 7px', borderRadius: 'var(--radius-full)',
+              background: '#FEF0D9', color: '#B85C00', fontWeight: 600,
+            }}>Docker</span>
+          )}
+          {node.wasm && (
+            <span style={{
+              fontSize: 10, padding: '2px 7px', borderRadius: 'var(--radius-full)',
+              background: '#E6F4EA', color: '#1E8E3E', fontWeight: 600,
+            }}>WASM</span>
+          )}
         </div>
+      )}
 
-        <div className="form-group">
-          <label className="form-label">Docker</label>
-          <div className="key-display">
-            <code className="key-display-value" style={{ fontSize: 11 }}>
-              docker run -d --name comb hivefabric/comb:latest
-            </code>
-          </div>
-        </div>
-
-        <p className="form-hint">
-          The agent will prompt for your API key on first launch. It connects to your
-          honeycomb on port 8080 and registers itself.
-        </p>
-
-        <button className="btn btn--primary" onClick={onClose}>
-          Done
-        </button>
+      {/* Footer: last seen */}
+      <div style={{ marginTop: 'auto', fontSize: 11, color: 'var(--color-text-disabled)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Clock size={11} />
+        Last seen {formatRelative(node.last_seen)}
       </div>
     </div>
   );
 }
 
-export default function HiveView() {
+// ─── HiveView ─────────────────────────────────────────────────────────────────
+
+export default function HiveView({ onGoToInstall }: { onGoToInstall?: () => void }) {
   const [nodes, setNodes] = useState<CombNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showRegister, setShowRegister] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -162,10 +239,17 @@ export default function HiveView() {
     return () => clearInterval(interval);
   }, []);
 
-  const online = nodes.filter((n) => n.status === 'online').length;
+  const online = nodes.filter((n) => n.online).length;
 
   return (
     <div className="view-container">
+      <style>{`
+        @keyframes hive-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(30,142,62,0.25); }
+          50% { box-shadow: 0 0 0 5px rgba(30,142,62,0.1); }
+        }
+      `}</style>
+
       <div className="section-header">
         <h1 className="section-title">My Hive</h1>
         <div className="flex gap-2">
@@ -173,9 +257,14 @@ export default function HiveView() {
             <RefreshCw size={13} className={loading ? 'spin' : ''} />
             Refresh
           </button>
-          <button className="btn btn--primary btn--sm" onClick={() => setShowRegister(true)}>
+          <button
+            className="btn btn--primary btn--sm"
+            onClick={onGoToInstall ?? (() => {
+              window.location.hash = '#/settings';
+            })}
+          >
             <PlusCircle size={13} />
-            Register comb
+            Add comb
           </button>
         </div>
       </div>
@@ -207,20 +296,24 @@ export default function HiveView() {
           <span style={{ fontSize: 40 }}>🕸️</span>
           <p className="text-title">No combs registered</p>
           <p className="text-secondary">Register your first comb to get started.</p>
-          <button className="btn btn--primary" onClick={() => setShowRegister(true)}>
+          <button
+            className="btn btn--primary"
+            onClick={onGoToInstall ?? (() => { window.location.hash = '#/settings'; })}
+          >
             <PlusCircle size={14} />
-            Register a comb
+            Add a comb
           </button>
         </div>
       ) : (
         <div className="card-grid">
           {nodes.map((node) => (
-            <NodeCard key={node.id} node={node} />
+            <NodeCard
+              key={node.node_id}
+              node={node}
+            />
           ))}
         </div>
       )}
-
-      {showRegister && <RegisterSheet onClose={() => setShowRegister(false)} />}
     </div>
   );
 }

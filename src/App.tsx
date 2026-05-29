@@ -50,9 +50,9 @@ export default function App() {
       <Sidebar active={view} onNavigate={navigate} />
       <main className="app-main">
         {view === 'chat' && <ChatView />}
-        {view === 'hive' && <HiveView />}
+        {view === 'hive' && <HiveView onGoToInstall={() => navigate('settings')} />}
         {view === 'models' && <ModelsView />}
-        {view === 'settings' && <SettingsView />}
+        {view === 'settings' && <SettingsView onViewHive={() => navigate('hive')} />}
       </main>
     </div>
   );

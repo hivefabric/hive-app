@@ -7,8 +7,9 @@ import {
   getPreferences,
   updatePreferences,
   enrollComb,
+  getNodes,
 } from '../api';
-import type { LLMProvider, UserPreferences, SensitivityLevel, EnrolCombResponse } from '../types';
+import type { LLMProvider, UserPreferences, SensitivityLevel, EnrolCombResponse, CombNode } from '../types';
 
 // ─── LLM Providers tab ───────────────────────────────────────────────────────
 
@@ -451,15 +452,32 @@ function ApiKeyTab() {
   );
 }
 
-// ─── My Combs tab ─────────────────────────────────────────────────────────────
+// ─── Install Comb tab ─────────────────────────────────────────────────────────
 
-function MyCombsTab() {
+type InstallMethod = 'cli' | 'docker' | 'already';
+
+function InstallCombView({ onViewHive }: { onViewHive?: () => void }) {
+  const [method, setMethod] = useState<InstallMethod>('cli');
+
+  // CLI tab state
   const [form, setForm] = useState({ name: '', capabilities: 'llm', port: 7072 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<EnrolCombResponse | null>(null);
   const [copiedCmd, setCopiedCmd] = useState(false);
   const [showToml, setShowToml] = useState(false);
+
+  // Registered combs list
+  const [combs, setCombs] = useState<CombNode[]>([]);
+  const [combsLoading, setCombsLoading] = useState(false);
+
+  useEffect(() => {
+    setCombsLoading(true);
+    getNodes()
+      .then(setCombs)
+      .catch(() => {/* ignore */})
+      .finally(() => setCombsLoading(false));
+  }, []);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -484,127 +502,268 @@ function MyCombsTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: 600 }}>
-      <div>
-        <h2 className="text-title" style={{ marginBottom: 4 }}>Enrol a Comb</h2>
-        <p className="text-secondary" style={{ fontSize: 13 }}>
-          Register your own device as a comb in your hive. Fill in the details below to
-          generate a start command. Run it on any machine — the comb will appear in your
-          My Hive tab once it connects.
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: 640 }}>
+
+      {/* Install method tabs */}
+      <div className="tabs">
+        <button className={`tab${method === 'cli' ? ' active' : ''}`} onClick={() => setMethod('cli')}>
+          CLI
+        </button>
+        <button className={`tab${method === 'docker' ? ' active' : ''}`} onClick={() => setMethod('docker')}>
+          Docker
+        </button>
+        <button className={`tab${method === 'already' ? ' active' : ''}`} onClick={() => setMethod('already')}>
+          Already running?
+        </button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
-
-      <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <div className="flex gap-3">
-          <div className="form-group" style={{ flex: 2 }}>
-            <label className="form-label">Name</label>
-            <input
-              className="input"
-              placeholder="my-comb"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label className="form-label">Port</label>
-            <input
-              className="input"
-              type="number"
-              min={1024}
-              max={65535}
-              value={form.port}
-              onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Capabilities</label>
-          <select
-            className="select"
-            value={form.capabilities}
-            onChange={(e) => setForm((f) => ({ ...f, capabilities: e.target.value }))}
-          >
-            <option value="llm">LLM — language model inference</option>
-            <option value="docker">Docker — container workloads</option>
-            <option value="both">Both — LLM + Docker</option>
-          </select>
-        </div>
-
-        <div>
-          <button type="submit" className="btn btn--primary" disabled={loading}>
-            {loading ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} /> : null}
-            {loading ? 'Generating…' : 'Generate Command'}
-          </button>
-        </div>
-      </form>
-
-      {result && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <p className="form-hint" style={{ fontSize: 13, color: 'var(--color-success)' }}>
-            {result.note}
+      {/* ── CLI tab ── */}
+      {method === 'cli' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <p className="text-secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+            Download and run the comb agent binary on any machine. Fill in the details below to
+            generate a personalised start command.
           </p>
 
-          <div className="form-group">
-            <label className="form-label">Start command</label>
-            <div className="key-display" style={{ alignItems: 'flex-start', padding: 'var(--space-3)' }}>
-              <code style={{ fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-all', flex: 1 }}>
-                {result.command}
-              </code>
-              <button
-                className="btn btn--ghost btn--sm btn--icon"
-                onClick={handleCopyCmd}
-                title="Copy command"
-                style={{ flexShrink: 0, marginTop: 2 }}
-              >
-                {copiedCmd
-                  ? <Check size={13} style={{ color: 'var(--color-success)' }} />
-                  : <Copy size={13} />}
-              </button>
-            </div>
-          </div>
+          {error && <div className="error-banner">{error}</div>}
 
-          <div className="form-group">
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
-              onClick={() => setShowToml((v) => !v)}
-            >
-              {showToml ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span style={{ fontSize: 13 }}>View comb config (TOML)</span>
-            </button>
-            {showToml && (
-              <pre style={{
-                marginTop: 'var(--space-2)',
-                padding: 'var(--space-3)',
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 6,
-                fontSize: 11,
-                lineHeight: 1.6,
-                overflowX: 'auto',
-                whiteSpace: 'pre',
-              }}>
-                {result.config_toml}
-              </pre>
-            )}
+          {!result ? (
+            <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div className="flex gap-3">
+                <div className="form-group" style={{ flex: 2 }}>
+                  <label className="form-label">Name</label>
+                  <input
+                    className="input"
+                    placeholder="my-comb"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Port</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1024}
+                    max={65535}
+                    value={form.port}
+                    onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Capabilities</label>
+                <select
+                  className="select"
+                  value={form.capabilities}
+                  onChange={(e) => setForm((f) => ({ ...f, capabilities: e.target.value }))}
+                >
+                  <option value="llm">LLM — language model inference</option>
+                  <option value="docker">Docker — container workloads</option>
+                  <option value="both">Both — LLM + Docker</option>
+                </select>
+              </div>
+
+              <div>
+                <button type="submit" className="btn btn--primary" disabled={loading}>
+                  {loading
+                    ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
+                    : null}
+                  {loading ? 'Generating…' : 'Generate Config'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              {result.note && (
+                <p style={{ fontSize: 13, color: 'var(--color-success)' }}>{result.note}</p>
+              )}
+
+              {/* Start command block */}
+              <div className="form-group">
+                <label className="form-label">Start command</label>
+                <div style={{
+                  position: 'relative',
+                  background: '#0D1117',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-3) 44px var(--space-3) var(--space-3)',
+                }}>
+                  <code style={{
+                    display: 'block',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                    lineHeight: 1.7,
+                    color: '#58D68D',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                  }}>
+                    {result.command}
+                  </code>
+                  <button
+                    className="btn btn--ghost btn--sm btn--icon"
+                    onClick={handleCopyCmd}
+                    title="Copy command"
+                    style={{ position: 'absolute', top: 8, right: 8, color: 'rgba(255,255,255,0.5)' }}
+                  >
+                    {copiedCmd
+                      ? <Check size={13} style={{ color: 'var(--color-success)' }} />
+                      : <Copy size={13} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Config collapsible */}
+              <div className="form-group">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
+                  onClick={() => setShowToml((v) => !v)}
+                >
+                  {showToml ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  <span style={{ fontSize: 13 }}>Show config file (TOML)</span>
+                </button>
+                {showToml && (
+                  <pre style={{
+                    marginTop: 'var(--space-2)',
+                    padding: 'var(--space-3)',
+                    background: '#0D1117',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    color: '#8B949E',
+                    fontFamily: 'var(--font-mono)',
+                    overflowX: 'auto',
+                    whiteSpace: 'pre',
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                  }}>
+                    {result.config_toml}
+                  </pre>
+                )}
+              </div>
+
+              <p className="form-hint" style={{ fontSize: 12 }}>
+                Save the config file, then run the command. The comb will appear in My Hive once running.
+              </p>
+
+              <div>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => { setResult(null); setShowToml(false); setError(''); }}
+                >
+                  Generate another
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Docker tab ── */}
+      {method === 'docker' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <p className="text-secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+              Run the comb as a Docker container — no install required.
+            </p>
+            <span className="badge badge--warning" style={{ flexShrink: 0 }}>Coming soon</span>
+          </div>
+          <div style={{
+            background: 'var(--color-surface-variant)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-3)',
+            opacity: 0.5,
+            cursor: 'not-allowed',
+          }}>
+            <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>
+              {`docker run -d \\
+  --name my-comb \\
+  -p 7072:7072 \\
+  -e HIVE_API_KEY=<your-key> \\
+  hivefabric/comb:latest`}
+            </code>
           </div>
         </div>
       )}
+
+      {/* ── Already running tab ── */}
+      {method === 'already' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <p className="text-secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+            If your comb is already running, it will appear in My Hive automatically once connected
+            to this control plane. No action needed — just make sure the comb agent is pointed at
+            the right gateway URL.
+          </p>
+          <div>
+            <button
+              className="btn btn--primary btn--sm"
+              onClick={onViewHive ?? (() => { window.location.hash = '#/hive'; })}
+            >
+              View My Hive
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Registered combs list ── */}
+      <div style={{ marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-4)' }}>
+        <p className="form-label" style={{ marginBottom: 'var(--space-2)' }}>Registered combs</p>
+        {combsLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+            <span className="spinner spinner--sm" /> Loading…
+          </div>
+        ) : combs.length === 0 ? (
+          <p className="form-hint">No combs registered yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {combs.map((c) => (
+              <div key={c.node_id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 13,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                    background: c.online ? 'var(--color-success)' : 'var(--color-text-disabled)',
+                  }} />
+                  <span style={{ fontWeight: 500 }}>
+                    {c.node_metadata?.device_name ?? c.node_id.slice(0, 8)}
+                  </span>
+                  {c.node_metadata?.hostname && (
+                    <span style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                      {c.node_metadata.hostname}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 11, color: c.online ? 'var(--color-success)' : 'var(--color-text-disabled)' }}>
+                  {c.online ? 'online' : 'offline'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
-type SettingsTab = 'providers' | 'preferences' | 'apikey' | 'mycombs';
+type SettingsTab = 'providers' | 'preferences' | 'apikey' | 'install';
 
-export default function SettingsView() {
+export default function SettingsView({ onViewHive }: { onViewHive?: () => void }) {
   const [tab, setTab] = useState<SettingsTab>('providers');
 
   return (
@@ -620,8 +779,8 @@ export default function SettingsView() {
         <button className={`tab${tab === 'preferences' ? ' active' : ''}`} onClick={() => setTab('preferences')}>
           Preferences
         </button>
-        <button className={`tab${tab === 'mycombs' ? ' active' : ''}`} onClick={() => setTab('mycombs')}>
-          My Combs
+        <button className={`tab${tab === 'install' ? ' active' : ''}`} onClick={() => setTab('install')}>
+          Add a Comb
         </button>
         <button className={`tab${tab === 'apikey' ? ' active' : ''}`} onClick={() => setTab('apikey')}>
           API Key
@@ -630,7 +789,7 @@ export default function SettingsView() {
 
       {tab === 'providers' && <ProvidersTab />}
       {tab === 'preferences' && <PreferencesTab />}
-      {tab === 'mycombs' && <MyCombsTab />}
+      {tab === 'install' && <InstallCombView onViewHive={onViewHive} />}
       {tab === 'apikey' && <ApiKeyTab />}
     </div>
   );

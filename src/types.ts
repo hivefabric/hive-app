@@ -34,16 +34,36 @@ export interface ToolCallResponse {
 
 // ─── Nodes ───────────────────────────────────────────────────────────────────
 
+/** Shape returned by GET /v1/me/combs (mirrors honeycomb NodeView) */
 export interface CombNode {
-  id: string;
-  name: string;
-  status: 'online' | 'offline' | 'degraded';
-  cpu_pct: number;
-  memory_pct: number;
-  battery_pct?: number;
-  thermal_status: 'nominal' | 'warm' | 'hot' | 'critical';
-  capabilities?: string[];
-  last_seen?: string;
+  node_id: string;
+  cpu_cores?: number;
+  memory_mb?: number;
+  available_memory_mb?: number;
+  cpu_usage_percent?: number | null;
+  memory_usage_percent?: number | null;
+  battery_percent?: number | null;
+  node_metadata?: {
+    device_name?: string | null;
+    hostname?: string | null;
+    platform_family?: string;
+    architecture?: string;
+    operating_system?: string;
+    device_type?: string | null;
+    agent_version?: string | null;
+  } | null;
+  sensor_readings?: Record<string, number>;
+  node_report?: {
+    power?: { source?: string; battery_percent?: number; thermal_state?: string };
+  } | null;
+  online: boolean;
+  active_tasks: number;
+  last_seen: string;
+  docker: boolean;
+  wasm: boolean;
+  runtime_capabilities?: string[];
+  advertised_capability_urns?: string[];
+  roles?: string[];
 }
 
 // ─── Models / Capabilities ───────────────────────────────────────────────────
