@@ -113,11 +113,11 @@ function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => voi
           </div>
 
           {/* Capability URNs (non-cell) */}
-          {(node.advertised_capability_urns ?? []).length > 0 && cells.length === 0 && (
+          {(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').length > 0 && cells.length === 0 && (
             <div>
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Capabilities</div>
               <div className="node-tags">
-                {(node.advertised_capability_urns ?? []).map(u => (
+                {(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').map(u => (
                   <span key={u} className="node-tag" title={u}>
                     {u.replace('oasf://', '').split('/')[2] ?? u}
                   </span>

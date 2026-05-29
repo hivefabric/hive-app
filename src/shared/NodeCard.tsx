@@ -61,9 +61,9 @@ export function NodeCard({ node, onClick }: { node: CombNode; onClick?: () => vo
         )}
       </div>
 
-      {(node.advertised_capability_urns ?? []).length > 0 && (
+      {(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').length > 0 && (
         <div className="node-tags">
-          {(node.advertised_capability_urns ?? []).slice(0, 4).map(u => {
+          {(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').slice(0, 4).map(u => {
             const seg = u.replace('oasf://', '').split('/');
             const label = seg[2] ?? seg[seg.length - 1] ?? u;
             return (
@@ -72,8 +72,8 @@ export function NodeCard({ node, onClick }: { node: CombNode; onClick?: () => vo
               </span>
             );
           })}
-          {(node.advertised_capability_urns ?? []).length > 4 && (
-            <span className="node-tag">+{(node.advertised_capability_urns ?? []).length - 4}</span>
+          {(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').length > 4 && (
+            <span className="node-tag">+{(node.advertised_capability_urns ?? []).filter(u => u !== 'oasf://commons/inference/worker/v1').length - 4}</span>
           )}
         </div>
       )}
