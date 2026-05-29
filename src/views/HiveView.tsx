@@ -379,6 +379,32 @@ export default function HiveView({ }: HiveViewProps) {
 
       {error && <div className="error-banner" style={{ margin: '0 24px' }}>{error}</div>}
 
+      {/* Cluster health stat row */}
+      {nodes.length > 0 && (() => {
+        const online = nodes.filter(n => n.online);
+        const activeTasks = online.reduce((s, n) => s + (n.active_tasks ?? 0), 0);
+        const avgCpu = online.length ? online.reduce((s, n) => s + (n.cpu_usage_percent ?? 0), 0) / online.length : 0;
+        const avgMem = online.length ? online.reduce((s, n) => s + (n.memory_usage_percent ?? 0), 0) / online.length : 0;
+        const cpuColor = avgCpu >= 90 ? '#C5221F' : avgCpu >= 70 ? '#E37400' : '#1E8E3E';
+        const memColor = avgMem >= 85 ? '#C5221F' : avgMem >= 65 ? '#E37400' : '#1E8E3E';
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, padding: '0 28px 16px', flexShrink: 0 }}>
+            {[
+              { label: 'Online', value: `${online.length}/${nodes.length}`, color: '#1E8E3E', sub: 'combs' },
+              { label: 'Active tasks', value: String(activeTasks), color: 'var(--color-primary)', sub: 'running now' },
+              { label: 'Avg CPU', value: `${Math.round(avgCpu)}%`, color: cpuColor, sub: 'cluster avg' },
+              { label: 'Avg Memory', value: `${Math.round(avgMem)}%`, color: memColor, sub: 'cluster avg' },
+            ].map(s => (
+              <div key={s.label} className="node-card" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div className="text-secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>{s.value}</div>
+                <div className="text-secondary" style={{ fontSize: 11 }}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {loading && nodes.length === 0 ? (
         <div className="hive-view-empty">
           <span className="spinner" /> Loading combs…
