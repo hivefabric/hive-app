@@ -78,6 +78,12 @@ export function NodeCard({ node, onClick }: { node: CombNode; onClick?: () => vo
         </div>
       )}
 
+      {(node.cells ?? []).filter(c => c.role !== 'wasm').length === 0 && node.online && (
+        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
+          Cells auto-generating…
+        </div>
+      )}
+
       {(node.cells ?? []).filter(c => c.role !== 'wasm').length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
           {(node.cells ?? []).filter(c => c.role !== 'wasm').map(c => (

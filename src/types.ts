@@ -161,6 +161,9 @@ export interface UserPreferences {
   queen_urn?: string;
   queen_llm_provider_id?: string;
   queen_model?: string;
+  // Tier and pool share
+  tier?: 'free' | 'premium';
+  pool_share_pct?: number;
 }
 
 // ─── Comb Enrolment ──────────────────────────────────────────────────────────

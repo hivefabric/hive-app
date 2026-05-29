@@ -343,6 +343,28 @@ export default function HiveView({ }: HiveViewProps) {
 
   useEffect(() => { load(); }, []);
 
+  // Re-fetch when settings trigger a cell refresh (cross-tab StorageEvent)
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key === 'hf_cells_refresh') load();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // Fallback poll every 10s to catch same-tab storage writes (some browsers skip StorageEvent for same page)
+  useEffect(() => {
+    let lastRefreshTs = localStorage.getItem('hf_cells_refresh') ?? '';
+    const id = setInterval(() => {
+      const current = localStorage.getItem('hf_cells_refresh') ?? '';
+      if (current !== lastRefreshTs) {
+        lastRefreshTs = current;
+        load();
+      }
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="hive-view">
       <div className="hive-view-header">

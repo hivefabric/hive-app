@@ -35,6 +35,7 @@ function QueenTab() {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [cellsUpdating, setCellsUpdating] = useState(false);
   const [error, setError] = useState('');
 
   const CLOUD_DEFAULTS: Record<string, string> = {
@@ -106,7 +107,11 @@ function QueenTab() {
       }
       invalidateQueenCache();
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setCellsUpdating(true);
+      // Signal HiveView to refresh cells
+      localStorage.setItem('hf_cells_refresh', Date.now().toString());
+      setTimeout(() => setCellsUpdating(false), 2000);
+      setTimeout(() => setSaved(false), 5000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
     } finally { setSaving(false); }
@@ -286,6 +291,18 @@ function QueenTab() {
             ✓ Cloud queen saved.
           </div>
         )}
+        {saved && (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {cellsUpdating ? (
+              <>
+                <span className="spinner spinner--sm" style={{ width: 10, height: 10 }} />
+                Cells updating… check My Hive in a moment
+              </>
+            ) : (
+              <>✓ Changes applied</>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -298,6 +315,7 @@ function PrivacyTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [cellsUpdating, setCellsUpdating] = useState(false);
 
   useEffect(() => {
     getPreferences().then(setPrefs).catch(() => {}).finally(() => setLoading(false));
@@ -317,9 +335,14 @@ function PrivacyTab() {
         max_execution_seconds: prefs.max_execution_seconds,
         // Always prefer local combs
         local_preference_pct: 100,
+        pool_share_pct: prefs.pool_share_pct,
       });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setCellsUpdating(true);
+      // Signal HiveView to refresh cells
+      localStorage.setItem('hf_cells_refresh', Date.now().toString());
+      setTimeout(() => setCellsUpdating(false), 2000);
+      setTimeout(() => setSaved(false), 5000);
     } catch { /* ignore */ } finally { setSaving(false); }
   }
 
@@ -346,14 +369,38 @@ function PrivacyTab() {
         {prefs.pool_enabled && (
           <div className="settings-pref-row">
             <div>
-              <div className="settings-pref-label">Pool share</div>
-              <div className="text-secondary" style={{ fontSize: 13 }}>How much of your capacity to share ({prefs.local_preference_pct ?? 50}%)</div>
+              <div className="settings-pref-label">
+                Pool share
+                {prefs.tier === 'premium' && (
+                  <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(255,193,7,0.15)', color: '#E37400', border: '1px solid #E37400' }}>Premium</span>
+                )}
+              </div>
+              <div className="text-secondary" style={{ fontSize: 13 }}>
+                {prefs.tier === 'premium'
+                  ? `${prefs.pool_share_pct ?? 50}% of worker slots offered to pool (minimum 50% for Premium)`
+                  : `${prefs.pool_share_pct ?? 0}% of worker slots offered to pool`}
+              </div>
             </div>
-            <input
-              type="range" min={10} max={100} step={10} value={prefs.local_preference_pct ?? 50}
-              onChange={(e) => set('local_preference_pct', +e.target.value)}
-              style={{ width: 120 }}
-            />
+            {prefs.tier === 'premium' ? (
+              <input
+                type="range" min={50} max={100} value={prefs.pool_share_pct ?? 50}
+                onChange={(e) => set('pool_share_pct', +e.target.value)}
+                style={{ width: 120 }}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <input
+                  type="range" min={0} max={100} value={prefs.pool_share_pct ?? 0}
+                  onChange={(e) => set('pool_share_pct', +e.target.value)}
+                  style={{ width: 120 }}
+                />
+                {(prefs.pool_share_pct ?? 0) > 0 && (prefs.pool_share_pct ?? 0) < 50 && (
+                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                    Upgrade to Premium to lock min 50%
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -394,6 +441,19 @@ function PrivacyTab() {
           {saving ? <span className="spinner spinner--sm" /> : saved ? <Check size={14} /> : null}
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}
         </button>
+
+        {saved && (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {cellsUpdating ? (
+              <>
+                <span className="spinner spinner--sm" style={{ width: 10, height: 10 }} />
+                Cells updating… check My Hive in a moment
+              </>
+            ) : (
+              <>✓ Changes applied</>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
