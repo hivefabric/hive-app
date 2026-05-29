@@ -5,9 +5,15 @@ import {
 } from 'lucide-react';
 import {
   getNodes, enrollComb, getPreferences, updatePreferences,
-  createLLMProvider, describeCluster,
+  createLLMProvider, setQueenConfig, invalidateQueenCache,
 } from '../api';
-import type { CombNode, UserPreferences, CapabilityInfo } from '../types';
+import type { CombNode, UserPreferences } from '../types';
+
+/** Extract model from inference URN, e.g. "qwen3.6" */
+function modelFromUrn(urn: string): string | null {
+  const m = urn.match(/oasf:\/\/commons\/inference\/([^/]+)\/v\d+/);
+  return m ? m[1].replace(/-/g, ':') : null;
+}
 
 interface SettingsProps {
   onViewHive: () => void;
@@ -176,165 +182,242 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
 // ─── Queen tab ────────────────────────────────────────────────────────────────
 
 function QueenTab() {
-  const [queenType, setQueenType] = useState<'local' | 'cloud' | null>(
-    () => (localStorage.getItem('hf_queen_type') as 'local' | 'cloud') ?? null,
-  );
-  const [queenUrn, setQueenUrn] = useState(() => localStorage.getItem('hf_queen_urn') ?? '');
-  const [queenCaps, setQueenCaps] = useState<CapabilityInfo[]>([]);
+  const [combs, setCombs] = useState<CombNode[]>([]);
+  const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // local queen form
+  const [queenType, setQueenType] = useState<'local' | 'cloud'>('local');
+  const [selectedCombId, setSelectedCombId] = useState('');
+  const [model, setModel] = useState('');
+  const [endpoint, setEndpoint] = useState('http://localhost:11434');
 
   // cloud form
   const [provider, setProvider] = useState<'anthropic' | 'openai' | 'openai_compat'>('anthropic');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  const [model, setModel] = useState('');
+  const [cloudModel, setCloudModel] = useState('claude-3-5-haiku-latest');
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const DEFAULTS: Record<string, string> = {
-    anthropic: 'claude-3-5-haiku-latest',
-    openai: 'gpt-4o-mini',
-    openai_compat: '',
+  const CLOUD_DEFAULTS: Record<string, string> = {
+    anthropic: 'claude-3-5-haiku-latest', openai: 'gpt-4o-mini', openai_compat: '',
   };
 
   useEffect(() => {
-    describeCluster().then((res) => {
-      setQueenCaps(res.capabilities.filter((c) => c.urn.includes('queen')));
-    }).catch(() => {});
+    Promise.all([getNodes(), getPreferences()])
+      .then(([nodes, p]) => {
+        setCombs(nodes.filter(n => n.online));
+        setPrefs(p);
+        // Pre-fill from existing config
+        if (p.queen_type) setQueenType(p.queen_type as 'local' | 'cloud');
+        if (p.queen_comb_id) setSelectedCombId(p.queen_comb_id);
+        if (p.queen_model) setModel(p.queen_model);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  async function saveCloudQueen() {
-    if (!apiKey.trim()) { setError('API key required'); return; }
+  function handleSelectComb(combId: string) {
+    setSelectedCombId(combId);
+    const comb = combs.find(c => c.node_id === combId);
+    if (!comb) return;
+    const inferenceUrns = (comb.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
+    if (inferenceUrns.length > 0 && !model) setModel(modelFromUrn(inferenceUrns[0]) ?? '');
+  }
+
+  async function save() {
     setSaving(true); setError('');
     try {
-      const prov = await createLLMProvider({
-        name: `queen-${provider}`,
-        provider,
-        api_key: apiKey.trim(),
-        base_url: baseUrl || undefined,
-        model: model || DEFAULTS[provider] || undefined,
-        is_default: true,
-      });
-      localStorage.setItem('hf_queen_type', 'cloud');
-      localStorage.setItem('hf_queen_provider_id', prov.id);
-      setQueenType('cloud');
+      if (queenType === 'local') {
+        const comb = combs.find(c => c.node_id === selectedCombId);
+        if (!comb) { setError('Select a comb'); setSaving(false); return; }
+        const queensUrn = (comb.advertised_capability_urns ?? []).find(u => u.includes('/queen/'));
+        const prov = await createLLMProvider({
+          name: 'queen-ollama', provider: 'openai', api_key: 'ollama',
+          base_url: endpoint.trim(), model: model.trim(), is_default: false,
+        });
+        await setQueenConfig({
+          queen_type: 'local', queen_comb_id: comb.node_id,
+          queen_urn: queensUrn ?? 'oasf://hive/queen/v1',
+          queen_llm_provider_id: prov.id, queen_model: model.trim(),
+        });
+      } else {
+        if (!apiKey.trim()) { setError('API key required'); setSaving(false); return; }
+        const prov = await createLLMProvider({
+          name: `queen-${provider}`, provider, api_key: apiKey.trim(),
+          base_url: baseUrl || undefined,
+          model: cloudModel || CLOUD_DEFAULTS[provider] || undefined, is_default: false,
+        });
+        await setQueenConfig({
+          queen_type: 'cloud', queen_llm_provider_id: prov.id,
+          queen_model: cloudModel || CLOUD_DEFAULTS[provider],
+        });
+      }
+      invalidateQueenCache();
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
     } finally { setSaving(false); }
   }
 
-  function saveLocalQueen() {
-    localStorage.setItem('hf_queen_type', 'local');
-    if (queenUrn) localStorage.setItem('hf_queen_urn', queenUrn);
-    setQueenType('local');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  const queenCombs = combs.filter(c => c.queen_capable);
+
+  if (loading) return (
+    <div className="settings-section">
+      <div className="text-secondary" style={{ padding: 16 }}><span className="spinner spinner--sm" /> Loading…</div>
+    </div>
+  );
 
   return (
     <div className="settings-section">
+      {/* Current status */}
+      {prefs?.queen_type && (
+        <div className="settings-block">
+          <h3 className="settings-block__title">Current queen</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+            <span style={{ fontSize: 20 }}>{prefs.queen_type === 'local' ? '🖥️' : '☁️'}</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                {prefs.queen_type === 'local' ? 'Local comb' : 'Cloud model'}
+              </div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>
+                {prefs.queen_model ?? 'model not set'}
+                {prefs.queen_comb_id && ` · comb ${prefs.queen_comb_id.slice(0, 8)}…`}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="settings-block">
-        <h3 className="settings-block__title">Queen configuration</h3>
-        <p className="text-secondary" style={{ margin: '0 0 16px', fontSize: 14 }}>
-          The queen decomposes your requests into tasks and schedules them on your combs.
-          {queenType && (
-            <span style={{ display: 'inline-block', marginLeft: 8 }}>
-              Currently: <strong>{queenType === 'local' ? `Local (${shortUrn(queenUrn)})` : 'Cloud'}</strong>
-            </span>
-          )}
+        <h3 className="settings-block__title">{prefs?.queen_type ? 'Change queen' : 'Configure queen'}</h3>
+        <p className="text-secondary" style={{ margin: '0 0 14px', fontSize: 14 }}>
+          The queen decomposes your requests and routes tasks to your combs.
         </p>
 
-        <div className="wizard-queen-options" style={{ marginBottom: 20 }}>
-          <button
-            className={`wizard-queen-option${queenType === 'local' ? ' wizard-queen-option--active' : ''}`}
-            onClick={() => setQueenType('local')}
-          >
-            <Server size={18} />
-            <div>
-              <div className="wizard-queen-option__title">Local comb</div>
-              <div className="wizard-queen-option__desc text-secondary">Private · runs on your device · no API cost</div>
-            </div>
-          </button>
-          <button
-            className={`wizard-queen-option${queenType === 'cloud' ? ' wizard-queen-option--active' : ''}`}
-            onClick={() => setQueenType('cloud')}
-          >
-            <Cloud size={18} />
-            <div>
-              <div className="wizard-queen-option__title">Cloud model</div>
-              <div className="wizard-queen-option__desc text-secondary">Anthropic, OpenAI, or any compatible endpoint</div>
-            </div>
-          </button>
+        {/* Type toggle */}
+        <div className="wizard-queen-options" style={{ marginBottom: 16 }}>
+          {(['local', 'cloud'] as const).map(t => (
+            <button key={t}
+              className={`wizard-queen-option${queenType === t ? ' wizard-queen-option--active' : ''}`}
+              onClick={() => setQueenType(t)}
+              style={{ gap: 10, padding: '10px 14px' }}
+            >
+              {t === 'local' ? <Server size={16} /> : <Cloud size={16} />}
+              <div style={{ flex: 1 }}>
+                <div className="wizard-queen-option__title">{t === 'local' ? 'Local comb' : 'Cloud model'}</div>
+                <div className="wizard-queen-option__desc text-secondary">
+                  {t === 'local' ? 'Private · no API cost' : 'Anthropic, OpenAI, or compatible'}
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
 
+        {/* Local: comb card list */}
         {queenType === 'local' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {queenCaps.length > 0 ? (
-              <div className="form-group">
-                <label className="form-label">Queen capability</label>
-                <select className="input" value={queenUrn} onChange={(e) => setQueenUrn(e.target.value)}>
-                  {queenCaps.map((c) => (
-                    <option key={c.urn} value={c.urn}>{c.description || c.urn}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="settings-empty">
-                No queen capability detected on your combs. Add one via the comb config (<code>handler = "queen:openai_compat"</code>).
-              </div>
-            )}
-            <button className="btn btn--primary" style={{ alignSelf: 'flex-start' }} onClick={saveLocalQueen}>
-              {saved ? <><Check size={14} /> Saved</> : 'Save'}
-            </button>
-          </div>
+          queenCombs.length === 0 ? (
+            <div className="settings-empty">
+              No queen-capable combs detected. A comb needs ≥8 cores and ≥8 GB RAM to host a queen.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              {queenCombs.map(c => {
+                const sel = selectedCombId === c.node_id;
+                const inferenceUrns = (c.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
+                const models = inferenceUrns.map(u => modelFromUrn(u)).filter(Boolean) as string[];
+                return (
+                  <div key={c.node_id}
+                    className={`wizard-queen-option${sel ? ' wizard-queen-option--active' : ''}`}
+                    onClick={() => handleSelectComb(c.node_id)}
+                    style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Server size={16} style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div className="wizard-queen-option__title">
+                          {c.node_metadata?.device_name || c.node_id.slice(0, 12)}
+                        </div>
+                        <div className="wizard-queen-option__desc text-secondary">
+                          {c.node_metadata?.operating_system ?? ''}
+                          {c.available_memory_mb ? ` · ${Math.round(c.available_memory_mb / 1024)}GB` : ''}
+                        </div>
+                      </div>
+                      {sel
+                        ? <Check size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />
+                        : <div style={{ width: 15, height: 15, borderRadius: '50%', border: '1.5px solid var(--color-border)', flexShrink: 0 }} />
+                      }
+                    </div>
+                    {sel && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onClick={e => e.stopPropagation()}>
+                        <div className="form-row">
+                          <div className="form-group" style={{ flex: 2 }}>
+                            <label className="form-label">Model</label>
+                            {models.length > 0 ? (
+                              <select className="input" value={model} onChange={e => setModel(e.target.value)}>
+                                {models.map(m => <option key={m} value={m}>{m}</option>)}
+                              </select>
+                            ) : (
+                              <input className="input" value={model} onChange={e => setModel(e.target.value)} placeholder="qwen3.6:latest" />
+                            )}
+                          </div>
+                          <div className="form-group" style={{ flex: 3 }}>
+                            <label className="form-label">Ollama endpoint</label>
+                            <input className="input" value={endpoint} onChange={e => setEndpoint(e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
 
+        {/* Cloud form */}
         {queenType === 'cloud' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="form-group">
-              <label className="form-label">Provider</label>
-              <select className="input" value={provider} onChange={(e) => {
-                const p = e.target.value as typeof provider;
-                setProvider(p);
-                setModel(DEFAULTS[p] ?? '');
-              }}>
-                <option value="anthropic">Anthropic</option>
-                <option value="openai">OpenAI</option>
-                <option value="openai_compat">OpenAI-compatible</option>
-              </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Provider</label>
+                <select className="input" value={provider} onChange={e => {
+                  const p = e.target.value as typeof provider;
+                  setProvider(p); setCloudModel(CLOUD_DEFAULTS[p] ?? '');
+                }}>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="openai_compat">OpenAI-compatible</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Model</label>
+                <input className="input" value={cloudModel} onChange={e => setCloudModel(e.target.value)} placeholder={CLOUD_DEFAULTS[provider]} />
+              </div>
             </div>
             {provider === 'openai_compat' && (
               <div className="form-group">
                 <label className="form-label">Base URL</label>
-                <input className="input" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.together.ai/v1" />
+                <input className="input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.together.ai/v1" />
               </div>
             )}
             <div className="form-group">
-              <label className="form-label">Model</label>
-              <input className="input" value={model} onChange={(e) => setModel(e.target.value)} placeholder={DEFAULTS[provider]} />
-            </div>
-            <div className="form-group">
               <label className="form-label">API Key</label>
-              <input className="input" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." />
+              <input className="input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." />
             </div>
-            {error && <div className="error-banner">{error}</div>}
-            <button
-              className="btn btn--primary"
-              style={{ alignSelf: 'flex-start' }}
-              onClick={saveCloudQueen}
-              disabled={saving || !apiKey.trim()}
-            >
-              {saving ? <span className="spinner spinner--sm" /> : saved ? <Check size={14} /> : null}
-              {saving ? 'Saving…' : saved ? 'Saved!' : 'Save cloud queen'}
-            </button>
           </div>
         )}
 
-        {!queenType && (
-          <div className="settings-empty">Select a queen type above to configure it.</div>
-        )}
+        {error && <div className="error-banner">{error}</div>}
+
+        <button className="btn btn--primary" style={{ alignSelf: 'flex-start' }} onClick={save} disabled={saving}>
+          {saving ? <span className="spinner spinner--sm" /> : saved ? <Check size={14} /> : null}
+          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save queen'}
+        </button>
       </div>
     </div>
   );

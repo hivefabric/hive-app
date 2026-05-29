@@ -90,18 +90,59 @@ export async function orchestrate(
   return data.final_message ?? '';
 }
 
+// ─── Queen config (server-side, cached) ──────────────────────────────────────
+
+let _queenPrefsCache: UserPreferences | null = null;
+
+export async function getQueenPrefs(): Promise<UserPreferences> {
+  if (_queenPrefsCache) return _queenPrefsCache;
+  try {
+    _queenPrefsCache = await getPreferences();
+    return _queenPrefsCache;
+  } catch {
+    return {} as UserPreferences;
+  }
+}
+
+export function invalidateQueenCache() {
+  _queenPrefsCache = null;
+}
+
 /**
- * Send a chat message using whichever queen is configured in localStorage.
- * Falls back to auto-route if no queen is configured.
+ * Save queen configuration to server preferences.
+ * Clears the local cache so the next chat() call re-reads.
+ */
+export async function setQueenConfig(config: {
+  queen_type: 'local' | 'cloud';
+  queen_comb_id?: string;
+  queen_urn?: string;
+  queen_llm_provider_id?: string;
+  queen_model?: string;
+}): Promise<UserPreferences> {
+  const updated = await updatePreferences(config);
+  _queenPrefsCache = updated;
+  // Mirror to localStorage for the privacy indicator (no extra fetch needed)
+  localStorage.setItem('hf_queen_type', config.queen_type);
+  if (config.queen_urn) localStorage.setItem('hf_queen_urn', config.queen_urn);
+  if (config.queen_model) localStorage.setItem('hf_queen_model', config.queen_model);
+  if (config.queen_comb_id) localStorage.setItem('hf_queen_comb_id', config.queen_comb_id);
+  return updated;
+}
+
+/**
+ * Route a chat message via the configured queen.
+ * Local queen → run_subagent with the queen URN (gateway injects queen_llm).
+ * Cloud queen → /v1/orchestrate with the stored provider.
+ * No queen configured → auto-route (no urn, gateway picks default).
  */
 export async function chat(prompt: string): Promise<string> {
-  const queenType = localStorage.getItem('hf_queen_type');
-  if (queenType === 'cloud') {
-    const providerId = localStorage.getItem('hf_queen_provider_id');
-    if (providerId) return orchestrate(prompt, providerId);
+  const prefs = await getQueenPrefs();
+  if (prefs.queen_type === 'cloud' && prefs.queen_llm_provider_id) {
+    return orchestrate(prompt, prefs.queen_llm_provider_id);
   }
-  const queenUrn = localStorage.getItem('hf_queen_urn');
-  return runSubagent(prompt, queenUrn || undefined);
+  // Local queen or fallback
+  const urn = prefs.queen_urn || localStorage.getItem('hf_queen_urn') || undefined;
+  return runSubagent(prompt, urn);
 }
 
 export async function describeCluster(): Promise<DescribeClusterResponse> {

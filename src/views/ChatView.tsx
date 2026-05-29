@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Lock } from 'lucide-react';
-import { chat } from '../api';
-import type { ChatMessage } from '../types';
+import { chat, getQueenPrefs } from '../api';
+import type { ChatMessage, UserPreferences } from '../types';
 
 function generateId() {
   return Math.random().toString(36).slice(2);
@@ -12,12 +12,26 @@ function formatTime(ts: number) {
 }
 
 function PrivacyIndicator() {
-  const queenType = localStorage.getItem('hf_queen_type') ?? 'local';
-  const isLocal = queenType === 'local' || !queenType;
+  const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+
+  useEffect(() => {
+    getQueenPrefs().then(setPrefs).catch(() => {});
+  }, []);
+
+  const queenType = prefs?.queen_type ?? localStorage.getItem('hf_queen_type') ?? null;
+  const queenModel = prefs?.queen_model ?? localStorage.getItem('hf_queen_model') ?? null;
+  const isLocal = !queenType || queenType === 'local';
+
+  const label = queenModel
+    ? `${isLocal ? '🖥️' : '☁️'} ${queenModel}`
+    : isLocal
+    ? 'Private · My Combs'
+    : 'Cloud Queen';
+
   return (
-    <div className="chat-privacy-badge" title={isLocal ? 'Tasks run on your combs' : 'Tasks routed via cloud queen'}>
+    <div className="chat-privacy-badge" title={isLocal ? 'Tasks run on your combs privately' : 'Tasks routed via cloud queen'}>
       <Lock size={11} />
-      {isLocal ? 'Private · My Combs' : 'Cloud Queen'}
+      {label}
     </div>
   );
 }

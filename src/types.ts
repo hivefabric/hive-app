@@ -116,6 +116,12 @@ export interface UserPreferences {
   retry_count: number;
   frontier_fallback: boolean;
   max_execution_seconds: number;
+  // Queen configuration — persisted server-side
+  queen_type?: 'local' | 'cloud';
+  queen_comb_id?: string;
+  queen_urn?: string;
+  queen_llm_provider_id?: string;
+  queen_model?: string;
 }
 
 // ─── Comb Enrolment ──────────────────────────────────────────────────────────
