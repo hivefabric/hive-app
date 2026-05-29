@@ -119,7 +119,7 @@ export interface UserPreferences {
 
 // ─── Comb Enrolment ──────────────────────────────────────────────────────────
 
-export type CombCapabilities = 'llm' | 'docker' | 'both';
+export type CombCapabilities = 'llm';
 
 export interface EnrolCombRequest {
   name: string;

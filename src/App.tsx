@@ -44,16 +44,18 @@ export default function App() {
   }
 
   if (!token) return <AuthGate onAuth={handleAuth} />;
-  if (!wizardDone) return <WizardView onDone={handleWizardDone} />;
 
   return (
-    <div className="app-layout">
-      <Sidebar active={view} onNavigate={navigate} />
-      <main className="app-main">
-        {view === 'chat' && <ChatView />}
-        {view === 'hive' && <HiveView onGoToInstall={() => navigate('settings')} />}
-        {view === 'settings' && <SettingsView onViewHive={() => navigate('hive')} />}
-      </main>
-    </div>
+    <>
+      <div className="app-layout" style={!wizardDone ? { filter: 'blur(3px)', pointerEvents: 'none', userSelect: 'none' } : undefined}>
+        <Sidebar active={view} onNavigate={navigate} />
+        <main className="app-main">
+          {view === 'chat' && <ChatView />}
+          {view === 'hive' && <HiveView onGoToInstall={() => navigate('settings')} />}
+          {view === 'settings' && <SettingsView onViewHive={() => navigate('hive')} />}
+        </main>
+      </div>
+      {!wizardDone && <WizardView onDone={handleWizardDone} />}
+    </>
   );
 }

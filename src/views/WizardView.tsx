@@ -146,8 +146,6 @@ function StepAddComb({ onNext }: { onNext: (combs: CombNode[]) => void }) {
               <label className="form-label">Capabilities</label>
               <select className="input" value={caps} onChange={(e) => setCaps(e.target.value)}>
                 <option value="llm">LLM inference</option>
-                <option value="docker">Docker execution</option>
-                <option value="both">Both</option>
               </select>
             </div>
           </div>

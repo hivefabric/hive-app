@@ -46,7 +46,7 @@ function CopyBlock({ text, label }: { text: string; label?: string }) {
 function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
   const [combs, setCombs] = useState<CombNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [installTab, setInstallTab] = useState<'cli' | 'docker' | 'running'>('cli');
+  const [installTab, setInstallTab] = useState<'cli' | 'running'>('cli');
 
   // enrol form
   const [name, setName] = useState('my-comb');
@@ -105,9 +105,9 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
       <div className="settings-block">
         <h3 className="settings-block__title">Add a comb</h3>
         <div className="tabs" style={{ marginBottom: 16 }}>
-          {(['cli', 'docker', 'running'] as const).map((t) => (
+          {(['cli', 'running'] as const).map((t) => (
             <button key={t} className={`tab${installTab === t ? ' active' : ''}`} onClick={() => setInstallTab(t)}>
-              {t === 'cli' ? '💻 CLI' : t === 'docker' ? '🐳 Docker' : '✓ Already running?'}
+              {t === 'cli' ? '💻 CLI' : '✓ Already running?'}
             </button>
           ))}
         </div>
@@ -130,8 +130,6 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
                 <label className="form-label">Capabilities</label>
                 <select className="input" value={caps} onChange={(e) => setCaps(e.target.value)}>
                   <option value="llm">LLM inference</option>
-                  <option value="docker">Docker execution</option>
-                  <option value="both">Both</option>
                 </select>
               </div>
             </div>
@@ -157,25 +155,7 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
           </div>
         )}
 
-        {installTab === 'docker' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p className="text-secondary" style={{ margin: 0, fontSize: 14 }}>
-              Run the comb as a Docker container — no install required.
-            </p>
-            <div className="coming-soon-block">
-              <Cloud size={18} />
-              <span>Docker install coming soon</span>
-            </div>
-            <pre className="copy-block__code" style={{ opacity: 0.5, userSelect: 'none' }}>
-{`docker run -d hivefabric/comb-node \\
-  -e CONTROL_PLANE_URL=http://localhost:8080 \\
-  -e CONTROL_PLANE_API_KEY=... \\
-  -e HIVE_OWNER_USER_ID=...`}
-            </pre>
-          </div>
-        )}
-
-        {installTab === 'running' && (
+{installTab === 'running' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <p className="text-secondary" style={{ margin: 0, fontSize: 14 }}>
               If your comb is already running and connected to this control plane, it will appear in the connected list above automatically.
