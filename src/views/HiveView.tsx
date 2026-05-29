@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, PlusCircle, Server, Thermometer, Battery, Cpu, MemoryStick, Network, Clock, X, Check, Copy, Terminal } from 'lucide-react';
+import { RefreshCw, PlusCircle, Server, Thermometer, Battery, Cpu, MemoryStick, Network, Clock, X, Check, Copy, Terminal, ChevronRight } from 'lucide-react';
 import { getNodes, enrollComb } from '../api';
-import type { CombNode } from '../types';
+import type { CombNode, CellView } from '../types';
 
 // ─── Helpers (same as honeycomb-ui utils.tsx) ─────────────────────────────────
 
@@ -39,14 +39,134 @@ function StatusBadge({ online }: { online: boolean }) {
   );
 }
 
+// ─── CombDetailModal ──────────────────────────────────────────────────────────
+
+const CELL_COLORS: Record<string, { border: string; bg: string; label: string }> = {
+  queen:         { border: 'var(--color-primary)',  bg: 'rgba(11,87,208,0.07)',   label: '👑 Queen' },
+  worker:        { border: '#1E8E3E',               bg: 'rgba(30,142,62,0.07)',   label: '⚙️ Worker' },
+  shared_worker: { border: '#E37400',               bg: 'rgba(227,116,0,0.07)',   label: '🌐 Shared' },
+  wasm:          { border: '#9334E9',               bg: 'rgba(147,52,233,0.07)',  label: '⚡ WASM' },
+};
+
+function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => void }) {
+  const cells = node.cells ?? [];
+  const totalReservedGb = cells.reduce((s, c) => s + (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1), 0);
+  const availableGb = node.available_memory_mb ? Math.round(node.available_memory_mb / 1024) : null;
+
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-dialog" style={{ maxWidth: 560 }}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className={`online-dot${node.online ? ' online-dot--on' : ''}`} />
+            <span className="modal-title">
+              {node.node_metadata?.device_name ?? node.node_id.slice(0, 16)}
+            </span>
+            {node.queen_capable && (
+              <span className="node-tag" style={{ background: 'rgba(11,87,208,0.1)', color: 'var(--color-primary)' }}>queen-eligible</span>
+            )}
+          </div>
+          <button className="btn btn--ghost btn--icon" style={{ padding: 4 }} onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="modal-body" style={{ gap: 20 }}>
+          {/* Hardware summary */}
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13 }}>
+            {node.node_metadata?.operating_system && (
+              <span className="text-secondary">{node.node_metadata.operating_system} · {node.node_metadata.architecture}</span>
+            )}
+            {node.cpu_cores && <span><Cpu size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{node.cpu_cores} cores</span>}
+            {availableGb && <span><MemoryStick size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{availableGb} GB avail</span>}
+            {node.active_tasks > 0 && <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}><Network size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{node.active_tasks} active tasks</span>}
+          </div>
+
+          {/* Cells */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                Cells
+                <span className="text-secondary" style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
+                  {cells.length > 0 ? `${cells.length} configured · ${totalReservedGb.toFixed(0)} GB reserved` : 'none configured'}
+                </span>
+              </div>
+            </div>
+
+            {cells.length === 0 ? (
+              <div className="settings-empty" style={{ padding: '14px 0' }}>
+                No cells configured. Add <code>[[cells]]</code> to your comb's config to define execution slots.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {cells.map((c: CellView) => {
+                  const colors = CELL_COLORS[c.role] ?? CELL_COLORS.worker;
+                  const totalGb = (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1);
+                  return (
+                    <div key={c.name} style={{
+                      padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                      border: `1px solid ${colors.border}`, background: colors.bg,
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>{c.name}</span>
+                        <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 100, border: `1px solid ${colors.border}`, color: colors.border }}>{colors.label}</span>
+                        <span className="text-secondary" style={{ marginLeft: 'auto', fontSize: 12 }}>
+                          ×{c.max_concurrent ?? 1} slots · {totalGb.toFixed(0)} GB total
+                        </span>
+                      </div>
+                      {c.model && (
+                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--color-surface-variant)', padding: '1px 6px', borderRadius: 4 }}>{c.model}</span>
+                          <span>· {c.reserved_gb ?? 0} GB/slot</span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                        {c.capability_urn}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Capability URNs (non-cell) */}
+          {(node.advertised_capability_urns ?? []).length > 0 && cells.length === 0 && (
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Capabilities</div>
+              <div className="node-tags">
+                {(node.advertised_capability_urns ?? []).map(u => (
+                  <span key={u} className="node-tag" title={u}>
+                    {u.replace('oasf://', '').split('/')[2] ?? u}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Clock size={11} /> Last seen {formatRelative(node.last_seen)}
+            <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{node.node_id}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── NodeCard — mirrors ComputeView's NodeCard exactly ───────────────────────
 
-function NodeCard({ node }: { node: CombNode }) {
+function NodeCard({ node, onClick }: { node: CombNode; onClick: () => void }) {
   const cpuTemp = node.sensor_readings?.['cpu_temp_c'];
   const isBattery = node.node_report?.power?.source?.toLowerCase() === 'battery';
 
   return (
-    <div className="node-card" style={{ borderTop: `3px solid ${node.online ? '#1E8E3E' : 'var(--color-border)'}` }}>
+    <div
+      className="node-card"
+      style={{ borderTop: `3px solid ${node.online ? '#1E8E3E' : 'var(--color-border)'}`, cursor: 'pointer' }}
+      onClick={onClick}
+    >
       <div className="node-card-header">
         <div>
           <div className="node-card-name">
@@ -134,8 +254,14 @@ function NodeCard({ node }: { node: CombNode }) {
         </div>
       )}
 
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-        <Clock size={11} /> Last seen {formatRelative(node.last_seen)}
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Clock size={11} /> Last seen {formatRelative(node.last_seen)}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--color-primary)', opacity: 0.7 }}>
+          {(node.cells ?? []).length > 0 ? `${(node.cells ?? []).length} cell${(node.cells ?? []).length !== 1 ? 's' : ''}` : 'Details'}
+          <ChevronRight size={10} />
+        </span>
       </div>
     </div>
   );
@@ -254,6 +380,7 @@ export default function HiveView({ }: HiveViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<CombNode | null>(null);
 
   async function load() {
     setLoading(true);
@@ -305,13 +432,16 @@ export default function HiveView({ }: HiveViewProps) {
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
           <div className="node-grid">
-            {nodes.map(n => <NodeCard key={n.node_id} node={n} />)}
+            {nodes.map(n => <NodeCard key={n.node_id} node={n} onClick={() => setSelectedNode(n)} />)}
           </div>
         </div>
       )}
 
       {showAddModal && (
         <AddCombModal onClose={() => setShowAddModal(false)} onAdded={load} />
+      )}
+      {selectedNode && (
+        <CombDetailModal node={selectedNode} onClose={() => setSelectedNode(null)} />
       )}
     </div>
   );
