@@ -37,6 +37,7 @@ function QueenTab() {
   const [saved, setSaved] = useState(false);
   const [cellsUpdating, setCellsUpdating] = useState(false);
   const [error, setError] = useState('');
+  const [oldModelHint, setOldModelHint] = useState<string | null>(null);
 
   const CLOUD_DEFAULTS: Record<string, string> = {
     anthropic: 'claude-3-5-haiku-latest', openai: 'gpt-4o-mini', openai_compat: '',
@@ -105,13 +106,22 @@ function QueenTab() {
           queen_model: cloudModel || CLOUD_DEFAULTS[provider],
         });
       }
+      // Update local prefs state immediately so the card reflects the new model
+      const newModel = queenType === 'local' ? selectedModel?.ollama_name : (cloudModel || CLOUD_DEFAULTS[provider]);
+      const oldModel = prefs?.queen_model;
+      setPrefs(p => p ? { ...p, queen_type: queenType, queen_model: newModel } : p);
       invalidateQueenCache();
       setSaved(true);
       setCellsUpdating(true);
-      // Signal HiveView to refresh cells
+      // Signal HiveView + PrivacyIndicator to refresh
       localStorage.setItem('hf_cells_refresh', Date.now().toString());
+      localStorage.setItem('hf_queen_model', newModel ?? '');
       setTimeout(() => setCellsUpdating(false), 2000);
       setTimeout(() => setSaved(false), 5000);
+      // Show model cleanup hint if model changed
+      if (oldModel && oldModel !== newModel) {
+        setOldModelHint(oldModel);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
     } finally { setSaving(false); }
@@ -368,6 +378,18 @@ function QueenTab() {
             ) : (
               <>✓ Changes applied</>
             )}
+          </div>
+        )}
+        {oldModelHint && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(249,171,0,0.08)', border: '1px solid #E37400', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Free up disk space</div>
+            <div className="text-secondary" style={{ marginBottom: 8 }}>
+              The old model <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{oldModelHint}</code> is still downloaded on your comb. Remove it to free space:
+            </div>
+            <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--color-surface-variant)', padding: '4px 8px', borderRadius: 4, display: 'block' }}>
+              ollama rm {oldModelHint}
+            </code>
+            <button className="btn btn--ghost btn--sm" style={{ marginTop: 8, fontSize: 11 }} onClick={() => setOldModelHint(null)}>Dismiss</button>
           </div>
         )}
       </div>

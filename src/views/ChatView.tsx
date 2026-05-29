@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Lock, Plus, X } from 'lucide-react';
 import { marked } from 'marked';
-import { chat, getQueenPrefs, listChats, getChat, createChat } from '../api';
+import { chat, getQueenPrefs, invalidateQueenCache, listChats, getChat, createChat } from '../api';
 import { loadSessions, saveSession, deleteSession, createSession, syncAppendMessage, syncRenameSession } from '../chat-storage';
 import type { ChatMessage, ChatSession, UserPreferences } from '../types';
 
@@ -30,12 +30,26 @@ function formatDate(ts: number) {
 function PrivacyIndicator() {
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
 
-  useEffect(() => {
+  function reload() {
+    invalidateQueenCache();
     getQueenPrefs().then(setPrefs).catch(() => {});
+  }
+
+  useEffect(() => {
+    reload();
+    // Re-fetch when settings saves a new queen model
+    function onStorage(e: StorageEvent) {
+      if (e.key === 'hf_cells_refresh' || e.key === 'hf_queen_model') reload();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Also reflect immediate localStorage changes (same tab)
+  const storedModel = localStorage.getItem('hf_queen_model');
   const queenType = prefs?.queen_type ?? localStorage.getItem('hf_queen_type') ?? null;
-  const queenModel = prefs?.queen_model ?? localStorage.getItem('hf_queen_model') ?? null;
+  const queenModel = prefs?.queen_model ?? storedModel ?? null;
   const isLocal = !queenType || queenType === 'local';
 
   const label = queenModel
