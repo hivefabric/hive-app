@@ -144,24 +144,42 @@ function QueenTab() {
           The queen decomposes your requests and routes tasks to your combs.
         </p>
 
-        {/* Type toggle */}
-        <div className="wizard-queen-options" style={{ marginBottom: 16 }}>
-          {(['local', 'cloud'] as const).map(t => (
-            <button key={t}
-              className={`wizard-queen-option${queenType === t ? ' wizard-queen-option--active' : ''}`}
-              onClick={() => setQueenType(t)}
-              style={{ gap: 10, padding: '10px 14px' }}
-            >
-              {t === 'local' ? <Server size={16} /> : <Cloud size={16} />}
-              <div style={{ flex: 1 }}>
-                <div className="wizard-queen-option__title">{t === 'local' ? 'Local comb' : 'Cloud model'}</div>
-                <div className="wizard-queen-option__desc text-secondary">
-                  {t === 'local' ? 'Private · no API cost' : 'Anthropic, OpenAI, or compatible'}
+        {/* Type toggle — local queen gated on queen-capable hardware */}
+        {(() => {
+          const hasQueenHardware = combs.some(c => c.queen_capable);
+          return (
+            <div className="wizard-queen-options" style={{ marginBottom: 16 }}>
+              <button
+                className={`wizard-queen-option${queenType === 'local' ? ' wizard-queen-option--active' : ''}`}
+                onClick={() => hasQueenHardware && setQueenType('local')}
+                style={{ gap: 10, padding: '10px 14px', opacity: hasQueenHardware ? 1 : 0.4, cursor: hasQueenHardware ? 'pointer' : 'default' }}
+                title={hasQueenHardware ? undefined : 'Requires a comb with ≥8 cores and ≥8 GB RAM'}
+              >
+                <Server size={16} />
+                <div style={{ flex: 1 }}>
+                  <div className="wizard-queen-option__title">
+                    Local comb
+                    {!hasQueenHardware && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>Hardware required</span>}
+                  </div>
+                  <div className="wizard-queen-option__desc text-secondary">
+                    {hasQueenHardware ? 'Private · no API cost' : 'Needs ≥8 cores and ≥8 GB RAM'}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+              <button
+                className={`wizard-queen-option${queenType === 'cloud' ? ' wizard-queen-option--active' : ''}`}
+                onClick={() => setQueenType('cloud')}
+                style={{ gap: 10, padding: '10px 14px' }}
+              >
+                <Cloud size={16} />
+                <div style={{ flex: 1 }}>
+                  <div className="wizard-queen-option__title">Cloud model</div>
+                  <div className="wizard-queen-option__desc text-secondary">Anthropic, OpenAI, or compatible</div>
+                </div>
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Local: model catalog picker */}
         {queenType === 'local' && (

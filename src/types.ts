@@ -44,7 +44,7 @@ export interface ToolCallResponse {
 
 export interface CellView {
   name: string;
-  role: 'queen' | 'worker' | 'wasm';
+  role: 'queen' | 'worker' | 'shared_worker' | 'wasm';
   model?: string | null;
   capability_urn: string;
   max_concurrent: number;

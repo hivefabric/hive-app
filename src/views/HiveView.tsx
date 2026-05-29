@@ -17,7 +17,8 @@ const CELL_COLORS: Record<string, { border: string; bg: string; label: string }>
 
 function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => void }) {
   const cells = node.cells ?? [];
-  const totalReservedGb = cells.reduce((s, c) => s + (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1), 0);
+  const visibleCells = cells.filter(c => c.role !== 'wasm');
+  const totalReservedGb = visibleCells.reduce((s, c) => s + (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1), 0);
   const availableGb = node.available_memory_mb ? Math.round(node.available_memory_mb / 1024) : null;
 
   return (
@@ -55,18 +56,18 @@ function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => voi
               <div style={{ fontWeight: 600, fontSize: 14 }}>
                 Cells
                 <span className="text-secondary" style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
-                  {cells.length > 0 ? `${cells.length} configured · ${totalReservedGb.toFixed(0)} GB reserved` : 'none configured'}
+                  {visibleCells.length > 0 ? `${visibleCells.length} configured · ${totalReservedGb.toFixed(0)} GB reserved` : 'auto-generating…'}
                 </span>
               </div>
             </div>
 
-            {cells.length === 0 ? (
+            {cells.filter(c => c.role !== 'wasm').length === 0 ? (
               <div className="settings-empty" style={{ padding: '14px 0' }}>
-                No cells configured. Add <code>[[cells]]</code> to your comb's config to define execution slots.
+                Cells are auto-generated from your hardware when the comb connects.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {cells.map((c: CellView) => {
+                {cells.filter((c: CellView) => c.role !== 'wasm').map((c: CellView) => {
                   const colors = CELL_COLORS[c.role] ?? CELL_COLORS.worker;
                   const totalGb = (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1);
                   return (
@@ -198,14 +199,14 @@ function NodeCard({ node, onClick }: { node: CombNode; onClick: () => void }) {
         </div>
       )}
 
-      {(node.cells ?? []).length > 0 && (
+      {(node.cells ?? []).filter(c => c.role !== 'wasm').length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
-          {(node.cells ?? []).map(c => (
+          {(node.cells ?? []).filter(c => c.role !== 'wasm').map(c => (
             <div key={c.name} style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '4px 10px', borderRadius: 6, fontSize: 11,
-              border: `1px solid ${c.role === 'queen' ? 'var(--color-primary)' : c.role === 'wasm' ? '#E37400' : '#1E8E3E'}`,
-              background: c.role === 'queen' ? 'rgba(11,87,208,0.07)' : c.role === 'wasm' ? 'rgba(249,171,0,0.07)' : 'rgba(30,142,62,0.07)',
+              border: `1px solid ${c.role === 'queen' ? 'var(--color-primary)' : c.role === 'shared_worker' ? '#E37400' : '#1E8E3E'}`,
+              background: c.role === 'queen' ? 'rgba(11,87,208,0.07)' : c.role === 'shared_worker' ? 'rgba(227,116,0,0.07)' : 'rgba(30,142,62,0.07)',
             }}>
               <span style={{ fontWeight: 600, minWidth: 70 }}>{c.name}</span>
               <span style={{ flex: 1, color: 'var(--color-text-secondary)' }}>{c.model ?? c.role}</span>

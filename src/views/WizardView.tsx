@@ -158,6 +158,34 @@ function StepComb({
 
 // ─── Step 2: Configure Queen ──────────────────────────────────────────────────
 
+function LocalQueenOption({ combs, active, onSelect }: {
+  combs: CombNode[];
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const capable = combs.some(c => c.queen_capable);
+  return (
+    <button
+      className={`wizard-queen-option${active && capable ? ' wizard-queen-option--active' : ''}`}
+      onClick={() => capable && onSelect()}
+      style={{ gap: 10, padding: '10px 14px', opacity: capable ? 1 : 0.4, cursor: capable ? 'pointer' : 'default' }}
+      title={capable ? undefined : 'Requires a comb with ≥8 cores and ≥8 GB RAM'}
+    >
+      <Server size={16} />
+      <div style={{ flex: 1 }}>
+        <div className="wizard-queen-option__title">
+          Local comb
+          {!capable && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>Hardware required</span>}
+        </div>
+        <div className="wizard-queen-option__desc text-secondary">
+          {capable ? 'Private · runs on your device · no API cost' : 'Needs a comb with ≥8 cores and ≥8 GB RAM'}
+        </div>
+      </div>
+      {active && capable && <CheckCircle size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
+    </button>
+  );
+}
+
 function StepQueen({
   combs,
   onBack,
@@ -260,20 +288,13 @@ function StepQueen({
           The queen decomposes your requests and routes tasks to your combs. Choose what it uses for thinking.
         </p>
 
-        {/* Type selector */}
+        {/* Local queen is gated on hardware: requires queen-capable comb (≥8 cores, ≥8GB, tool-calling model) */}
         <div className="wizard-queen-options">
-          <button
-            className={`wizard-queen-option${queenType === 'local' ? ' wizard-queen-option--active' : ''}`}
-            onClick={() => setQueenType('local')}
-            style={{ gap: 10, padding: '10px 14px' }}
-          >
-            <Server size={16} />
-            <div style={{ flex: 1 }}>
-              <div className="wizard-queen-option__title">Local comb</div>
-              <div className="wizard-queen-option__desc text-secondary">Private · runs on your device · no API cost</div>
-            </div>
-            {queenType === 'local' && <CheckCircle size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
-          </button>
+          <LocalQueenOption
+            combs={combs}
+            active={queenType === 'local'}
+            onSelect={() => setQueenType('local')}
+          />
           <button
             className={`wizard-queen-option${queenType === 'cloud' ? ' wizard-queen-option--active' : ''}`}
             onClick={() => setQueenType('cloud')}
