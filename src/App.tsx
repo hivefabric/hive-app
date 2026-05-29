@@ -52,7 +52,7 @@ export default function App() {
         <main className="app-main">
           {view === 'chat' && <ChatView />}
           {view === 'hive' && <HiveView onGoToInstall={() => navigate('settings')} />}
-          {view === 'settings' && <SettingsView onViewHive={() => navigate('hive')} />}
+          {view === 'settings' && <SettingsView />}
         </main>
       </div>
       {!wizardDone && <WizardView onDone={handleWizardDone} />}

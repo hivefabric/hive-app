@@ -9,80 +9,10 @@ import {
 } from '../api';
 import type { CombNode, UserPreferences, ModelEntry } from '../types';
 
-interface SettingsProps {
-  onViewHive: () => void;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface SettingsProps {}
 
-type Tab = 'combs' | 'queen' | 'privacy' | 'apikey';
-
-function shortUrn(urn: string) {
-  return urn.replace('oasf://', '').split('/')[2] ?? urn;
-}
-
-// ─── Combs tab ────────────────────────────────────────────────────────────────
-
-function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
-  const [combs, setCombs] = useState<CombNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getNodes().then(setCombs).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div className="settings-section">
-      {/* Connected combs */}
-      <div className="settings-block">
-        <div className="settings-block__header">
-          <h3 className="settings-block__title">Connected combs</h3>
-        </div>
-        {loading ? (
-          <div className="text-secondary" style={{ padding: '12px 0' }}><span className="spinner spinner--sm" /> Loading…</div>
-        ) : combs.length === 0 ? (
-          <div className="settings-empty">No combs online. Go to My Hive to add one.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {combs.map((c) => (
-              <div key={c.node_id} className="settings-comb-row">
-                <div className={`online-dot${c.online ? ' online-dot--on' : ''}`} />
-                <div style={{ flex: 1 }}>
-                  <div className="settings-comb-name">
-                    {c.node_metadata?.device_name || c.node_metadata?.hostname || c.node_id.slice(0, 12)}
-                  </div>
-                  <div className="text-secondary" style={{ fontSize: 12 }}>
-                    {(c.advertised_capability_urns ?? []).map(shortUrn).join(' · ')}
-                  </div>
-                  {c.cells && c.cells.length > 0 && (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                      {c.cells.map(cell => (
-                        <span key={cell.name} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-surface-variant)', color: 'var(--color-text-secondary)' }}>
-                          {cell.name} ({cell.model ?? cell.role})
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <span className={`badge badge--${c.online ? 'success' : 'muted'}`}>
-                  {c.online ? 'Online' : 'Offline'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Navigate to My Hive */}
-      <div className="settings-block">
-        <button className="btn btn--outline" onClick={onViewHive} style={{ alignSelf: 'flex-start' }}>
-          Go to My Hive →
-        </button>
-        <p className="text-secondary" style={{ margin: '8px 0 0', fontSize: 13 }}>
-          Add combs, view metrics, and manage connections from My Hive.
-        </p>
-      </div>
-    </div>
-  );
-}
+type Tab = 'queen' | 'privacy' | 'apikey';
 
 // ─── Queen tab ────────────────────────────────────────────────────────────────
 
@@ -498,14 +428,13 @@ function ApiKeyTab() {
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'combs',  label: 'Combs' },
-  { id: 'queen',  label: 'Queen' },
+  { id: 'queen',   label: 'Queen' },
   { id: 'privacy', label: 'Privacy' },
-  { id: 'apikey', label: 'API Key' },
+  { id: 'apikey',  label: 'API Key' },
 ];
 
-export default function SettingsView({ onViewHive }: SettingsProps) {
-  const [tab, setTab] = useState<Tab>('combs');
+export default function SettingsView({ }: SettingsProps) {
+  const [tab, setTab] = useState<Tab>('queen');
 
   return (
     <div className="settings-layout">
@@ -520,7 +449,7 @@ export default function SettingsView({ onViewHive }: SettingsProps) {
         ))}
       </div>
       <div className="settings-body">
-        {tab === 'combs'  && <MyCombsTab onViewHive={onViewHive} />}
+
         {tab === 'queen'  && <QueenTab />}
         {tab === 'privacy' && <PrivacyTab />}
         {tab === 'apikey' && <ApiKeyTab />}
