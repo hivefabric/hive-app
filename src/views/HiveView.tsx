@@ -379,6 +379,12 @@ export default function HiveView({ }: HiveViewProps) {
 
       {error && <div className="error-banner" style={{ margin: '0 24px' }}>{error}</div>}
 
+      {import.meta.env.DEV && (
+        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', padding: '0 28px 8px', fontStyle: 'italic' }}>
+          Dev mode: all registered combs are visible. In production, combs are scoped to owner_user_id.
+        </div>
+      )}
+
       {/* Cluster health stat row */}
       {nodes.length > 0 && (() => {
         const online = nodes.filter(n => n.online);

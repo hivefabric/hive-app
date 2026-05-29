@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Lock, Plus, X } from 'lucide-react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { chat, getQueenPrefs, invalidateQueenCache, listChats, getChat, createChat } from '../api';
 import { loadSessions, saveSession, deleteSession, createSession, syncAppendMessage, syncRenameSession } from '../chat-storage';
 import type { ChatMessage, ChatSession, UserPreferences } from '../types';
@@ -293,7 +294,7 @@ export default function ChatView() {
 
   async function handleSend() {
     const trimmed = input.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed || sending || !queenConfigured) return;
 
     // Get or create the active session object
     let session = sessions.find((s) => s.id === activeId);
@@ -432,7 +433,7 @@ export default function ChatView() {
                     <div
                       className="message-bubble message-bubble--ai"
                       style={msg.status === 'failed' ? { borderColor: 'var(--color-error)', color: 'var(--color-error)' } : undefined}
-                      dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }}
                     />
                   ) : (
                     <div
@@ -465,8 +466,9 @@ export default function ChatView() {
             <button
               className="btn btn--primary btn--icon"
               onClick={handleSend}
-              disabled={!input.trim() || sending}
-              title="Send (Enter)"
+              disabled={!input.trim() || sending || !queenConfigured}
+              title={!queenConfigured ? 'Configure a queen in Settings first' : 'Send (Enter)'}
+              aria-label={!queenConfigured ? 'Configure a queen in Settings first' : 'Send'}
             >
               {sending
                 ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />

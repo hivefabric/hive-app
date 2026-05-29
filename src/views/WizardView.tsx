@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, ChevronRight, ChevronLeft, Server, Cloud, Terminal, RefreshCw, X } from 'lucide-react';
-import { getNodes, enrollComb, setQueenConfig, invalidateQueenCache, getModels, createLLMProvider } from '../api';
+import { getNodes, enrollComb, setQueenConfig, invalidateQueenCache, getModels, getLLMProviders, createLLMProvider } from '../api';
 import type { CombNode, ModelEntry } from '../types';
 import { CopyBlock } from '../shared/CopyBlock';
 
@@ -148,7 +148,7 @@ function StepComb({
 
       <div className="modal-footer">
         <button className="btn btn--ghost btn--sm" onClick={onSkip}>Skip</button>
-        <button className="btn btn--primary" onClick={onNext} disabled={combs.length === 0 && !result}>
+        <button className="btn btn--primary" onClick={onNext} disabled={combs.length === 0}>
           Next <ChevronRight size={15} />
         </button>
       </div>
@@ -260,7 +260,9 @@ function StepQueen({
         });
       } else {
         if (!apiKey.trim()) { setError('API key is required'); setSaving(false); return; }
-        const prov = await createLLMProvider({
+        const existing = await getLLMProviders();
+        const existingQueen = existing.find(p => p.name.startsWith(`queen-${provider}`));
+        const prov = existingQueen ?? await createLLMProvider({
           name: `queen-${provider}`,
           provider,
           api_key: apiKey.trim(),

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   getNodes, getPreferences, updatePreferences,
-  createLLMProvider, setQueenConfig, invalidateQueenCache, getModels,
+  getLLMProviders, createLLMProvider, setQueenConfig, invalidateQueenCache, getModels,
 } from '../api';
 import type { CombNode, UserPreferences, ModelEntry } from '../types';
 
@@ -96,7 +96,9 @@ function QueenTab() {
         });
       } else {
         if (!apiKey.trim()) { setError('API key required'); setSaving(false); return; }
-        const prov = await createLLMProvider({
+        const existing = await getLLMProviders();
+        const existingQueen = existing.find(p => p.name.startsWith(`queen-${provider}`));
+        const prov = existingQueen ?? await createLLMProvider({
           name: `queen-${provider}`, provider, api_key: apiKey.trim(),
           base_url: baseUrl || undefined,
           model: cloudModel || CLOUD_DEFAULTS[provider] || undefined, is_default: false,

@@ -14,7 +14,6 @@ import type {
 } from './types';
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8090';
-const HONEYCOMB = import.meta.env.VITE_HONEYCOMB_URL || 'http://localhost:8080';
 
 function getToken(): string {
   return localStorage.getItem('hf_token') ?? '';
@@ -265,8 +264,8 @@ export async function updatePreferences(prefs: Partial<UserPreferences>): Promis
 
 export async function getModels(): Promise<ModelEntry[]> {
   try {
-    const res = await fetch(`${HONEYCOMB}/api/models`);
-    const d = await res.json();
+    const res = await fetch(`${GATEWAY}/v1/me/models`, { headers: authHeaders() });
+    const d = await handleResponse<{ models: ModelEntry[] }>(res);
     return d.models ?? [];
   } catch { return []; }
 }
