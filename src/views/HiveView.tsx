@@ -86,34 +86,27 @@ function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => voi
                 Cells are auto-generated from your hardware when the comb connects.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {cells.filter((c: CellView) => c.role !== 'wasm').map((c: CellView) => {
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {cells.filter((c: CellView) => c.role !== 'wasm').flatMap((c: CellView) => {
                   const colors = CELL_COLORS[c.role] ?? CELL_COLORS.worker;
-                  const totalGb = (c.reserved_gb ?? 0) * (c.max_concurrent ?? 1);
-                  return (
-                    <div key={c.name} style={{
-                      padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                  const slots = c.max_concurrent ?? 1;
+                  // Expand each cell into individual slot rows
+                  return Array.from({ length: slots }, (_, i) => (
+                    <div key={`${c.name}-${i}`} style={{
+                      padding: '8px 12px', borderRadius: 'var(--radius-md)',
                       border: `1px solid ${colors.border}`, background: colors.bg,
-                      display: 'flex', flexDirection: 'column', gap: 6,
+                      display: 'flex', alignItems: 'center', gap: 10,
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: 14 }}>{c.name}</span>
-                        <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 100, border: `1px solid ${colors.border}`, color: colors.border }}>{colors.label}</span>
-                        <span className="text-secondary" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                          ×{c.max_concurrent ?? 1} slots · {totalGb.toFixed(0)} GB total
-                        </span>
-                      </div>
+                      <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 100, border: `1px solid ${colors.border}`, color: colors.border, flexShrink: 0 }}>{colors.label}</span>
                       {c.model && (
-                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--color-surface-variant)', padding: '1px 6px', borderRadius: 4 }}>{c.model}</span>
-                          <span>· {c.reserved_gb ?? 0} GB/slot</span>
-                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--color-surface-variant)', padding: '1px 6px', borderRadius: 4 }}>{c.model}</span>
                       )}
-                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                        {c.capability_urn}
-                      </div>
+                      <span className="text-secondary" style={{ fontSize: 12 }}>{c.reserved_gb ?? 0} GB</span>
+                      {slots > 1 && (
+                        <span className="text-secondary" style={{ marginLeft: 'auto', fontSize: 11 }}>slot {i + 1}/{slots}</span>
+                      )}
                     </div>
-                  );
+                  ));
                 })}
               </div>
             )}
