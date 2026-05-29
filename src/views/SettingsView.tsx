@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   Server, Copy, Check,
-  Terminal, Cloud, RefreshCw, Trash2,
+  Cloud, Trash2,
 } from 'lucide-react';
 import {
-  getNodes, enrollComb, getPreferences, updatePreferences,
+  getNodes, getPreferences, updatePreferences,
   createLLMProvider, setQueenConfig, invalidateQueenCache, getModels,
 } from '../api';
 import type { CombNode, UserPreferences, ModelEntry } from '../types';
-import { CopyBlock } from '../shared/CopyBlock';
 
 interface SettingsProps {
   onViewHive: () => void;
@@ -20,31 +19,15 @@ function shortUrn(urn: string) {
   return urn.replace('oasf://', '').split('/')[2] ?? urn;
 }
 
-// ─── My Combs tab ─────────────────────────────────────────────────────────────
+// ─── Combs tab ────────────────────────────────────────────────────────────────
 
 function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
   const [combs, setCombs] = useState<CombNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [installTab, setInstallTab] = useState<'cli' | 'running'>('cli');
-
-  // enrol form
-  const [name, setName] = useState('my-comb');
-  const [port, setPort] = useState(7070);
-  const [caps, setCaps] = useState('llm');
-  const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<{ command: string; config_toml: string } | null>(null);
 
   useEffect(() => {
     getNodes().then(setCombs).catch(() => {}).finally(() => setLoading(false));
   }, []);
-
-  async function generate() {
-    setGenerating(true);
-    try {
-      const res = await enrollComb(name, caps, port);
-      setResult(res);
-    } catch { /* ignore */ } finally { setGenerating(false); }
-  }
 
   return (
     <div className="settings-section">
@@ -52,12 +35,11 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
       <div className="settings-block">
         <div className="settings-block__header">
           <h3 className="settings-block__title">Connected combs</h3>
-          <button className="btn btn--ghost btn--sm" onClick={onViewHive}>View all →</button>
         </div>
         {loading ? (
           <div className="text-secondary" style={{ padding: '12px 0' }}><span className="spinner spinner--sm" /> Loading…</div>
         ) : combs.length === 0 ? (
-          <div className="settings-empty">No combs online. Add one below.</div>
+          <div className="settings-empty">No combs online. Go to My Hive to add one.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {combs.map((c) => (
@@ -89,73 +71,14 @@ function MyCombsTab({ onViewHive }: { onViewHive: () => void }) {
         )}
       </div>
 
-      {/* Add a comb */}
+      {/* Navigate to My Hive */}
       <div className="settings-block">
-        <h3 className="settings-block__title">Add a comb</h3>
-        <div className="tabs" style={{ marginBottom: 16 }}>
-          {(['cli', 'running'] as const).map((t) => (
-            <button key={t} className={`tab${installTab === t ? ' active' : ''}`} onClick={() => setInstallTab(t)}>
-              {t === 'cli' ? '💻 CLI' : '✓ Already running?'}
-            </button>
-          ))}
-        </div>
-
-        {installTab === 'cli' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p className="text-secondary" style={{ margin: 0, fontSize: 14 }}>
-              Download and run the comb agent binary on any device.
-            </p>
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 2 }}>
-                <label className="form-label">Name</label>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Port</label>
-                <input className="input" type="number" value={port} onChange={(e) => setPort(+e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: 2 }}>
-                <label className="form-label">Capabilities</label>
-                <select className="input" value={caps} onChange={(e) => setCaps(e.target.value)}>
-                  <option value="llm">LLM inference</option>
-                </select>
-              </div>
-            </div>
-            {!result ? (
-              <button className="btn btn--primary" onClick={generate} disabled={generating} style={{ alignSelf: 'flex-start' }}>
-                {generating ? <span className="spinner spinner--sm" /> : <Terminal size={14} />}
-                Generate command
-              </button>
-            ) : (
-              <>
-                <CopyBlock text={result.command} label="Run on your device:" />
-                <details>
-                  <summary className="text-secondary" style={{ cursor: 'pointer', fontSize: 13, userSelect: 'none' }}>
-                    Show config file
-                  </summary>
-                  <div style={{ marginTop: 8 }}><CopyBlock text={result.config_toml} /></div>
-                </details>
-                <p className="text-secondary" style={{ fontSize: 13, margin: 0 }}>
-                  Save the config, then run the command. The comb will appear above once online.
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-{installTab === 'running' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p className="text-secondary" style={{ margin: 0, fontSize: 14 }}>
-              If your comb is already running and connected to this control plane, it will appear in the connected list above automatically.
-            </p>
-            <button className="btn btn--outline" onClick={() => {
-              setLoading(true);
-              getNodes().then(setCombs).catch(() => {}).finally(() => setLoading(false));
-            }}>
-              <RefreshCw size={14} /> Refresh
-            </button>
-          </div>
-        )}
+        <button className="btn btn--outline" onClick={onViewHive} style={{ alignSelf: 'flex-start' }}>
+          Go to My Hive →
+        </button>
+        <p className="text-secondary" style={{ margin: '8px 0 0', fontSize: 13 }}>
+          Add combs, view metrics, and manage connections from My Hive.
+        </p>
       </div>
     </div>
   );
@@ -429,7 +352,13 @@ function PrivacyTab() {
     if (!prefs) return;
     setSaving(true);
     try {
-      await updatePreferences(prefs);
+      await updatePreferences({
+        pool_enabled: prefs.pool_enabled,
+        frontier_fallback: prefs.frontier_fallback,
+        max_execution_seconds: prefs.max_execution_seconds,
+        // Always prefer local combs
+        local_preference_pct: 100,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch { /* ignore */ } finally { setSaving(false); }
@@ -440,12 +369,13 @@ function PrivacyTab() {
 
   return (
     <div className="settings-section">
+      {/* Pool compute */}
       <div className="settings-block">
-        <h3 className="settings-block__title">Privacy &amp; routing</h3>
+        <h3 className="settings-block__title">Pool compute</h3>
 
         <div className="settings-pref-row">
           <div>
-            <div className="settings-pref-label">Allow pool combs</div>
+            <div className="settings-pref-label">Share compute with the pool</div>
             <div className="text-secondary" style={{ fontSize: 13 }}>Let tasks run on shared pool combs when yours are busy</div>
           </div>
           <label className="toggle">
@@ -454,45 +384,45 @@ function PrivacyTab() {
           </label>
         </div>
 
-        <div className="settings-pref-row">
-          <div>
-            <div className="settings-pref-label">Local preference</div>
-            <div className="text-secondary" style={{ fontSize: 13 }}>How often to try your own combs first ({prefs.local_preference_pct}%)</div>
+        {prefs.pool_enabled && (
+          <div className="settings-pref-row">
+            <div>
+              <div className="settings-pref-label">Pool share</div>
+              <div className="text-secondary" style={{ fontSize: 13 }}>How much of your capacity to share ({prefs.local_preference_pct ?? 50}%)</div>
+            </div>
+            <input
+              type="range" min={10} max={100} step={10} value={prefs.local_preference_pct ?? 50}
+              onChange={(e) => set('local_preference_pct', +e.target.value)}
+              style={{ width: 120 }}
+            />
           </div>
-          <input
-            type="range" min={0} max={100} value={prefs.local_preference_pct}
-            onChange={(e) => set('local_preference_pct', +e.target.value)}
-            style={{ width: 120 }}
-          />
-        </div>
+        )}
+      </div>
 
-        <div className="settings-pref-row">
-          <div>
-            <div className="settings-pref-label">Default privacy</div>
-            <div className="text-secondary" style={{ fontSize: 13 }}>Minimum sensitivity floor for all tasks</div>
-          </div>
-          <select className="input" style={{ width: 140 }} value={prefs.default_sensitivity} onChange={(e) => set('default_sensitivity', e.target.value as UserPreferences['default_sensitivity'])}>
-            <option value="Private">Private</option>
-            <option value="SemiPrivate">Semi-Private</option>
-            <option value="Public">Public</option>
-          </select>
-        </div>
+      {/* Fallback */}
+      <div className="settings-block">
+        <h3 className="settings-block__title">Fallback</h3>
 
         <div className="settings-pref-row">
           <div>
             <div className="settings-pref-label">Cloud fallback</div>
-            <div className="text-secondary" style={{ fontSize: 13 }}>Fall back to frontier LLM if no comb is available</div>
+            <div className="text-secondary" style={{ fontSize: 13 }}>Use a cloud model if no comb is available</div>
           </div>
           <label className="toggle">
             <input type="checkbox" checked={prefs.frontier_fallback} onChange={(e) => set('frontier_fallback', e.target.checked)} />
             <span className="toggle__slider" />
           </label>
         </div>
+      </div>
+
+      {/* Timeout */}
+      <div className="settings-block">
+        <h3 className="settings-block__title">Timeout</h3>
 
         <div className="settings-pref-row">
           <div>
-            <div className="settings-pref-label">Task timeout</div>
-            <div className="text-secondary" style={{ fontSize: 13 }}>Max seconds per task ({prefs.max_execution_seconds}s)</div>
+            <div className="settings-pref-label">Max task time</div>
+            <div className="text-secondary" style={{ fontSize: 13 }}>Maximum seconds per task ({prefs.max_execution_seconds}s)</div>
           </div>
           <input
             type="range" min={30} max={600} step={30} value={prefs.max_execution_seconds}
@@ -568,7 +498,7 @@ function ApiKeyTab() {
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'combs',  label: 'My Combs' },
+  { id: 'combs',  label: 'Combs' },
   { id: 'queen',  label: 'Queen' },
   { id: 'privacy', label: 'Privacy' },
   { id: 'apikey', label: 'API Key' },

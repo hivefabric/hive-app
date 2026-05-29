@@ -428,6 +428,11 @@ function StepReady({ onBack, onDone }: { onBack: () => void; onDone: () => void 
             )}
           </div>
         )}
+        {queenType === 'local' && !queenModel && (
+          <div className="wizard-warning" style={{ width: '100%', textAlign: 'left' }}>
+            Queen model not configured. Go to Settings → Queen to set it up.
+          </div>
+        )}
         <div className="wizard-ready-tips">
           <div className="wizard-tip">📡 Tasks run on your combs by default — private</div>
           <div className="wizard-tip">🧠 The queen breaks complex requests into steps automatically</div>
