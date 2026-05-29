@@ -2,42 +2,9 @@ import { useState, useEffect } from 'react';
 import { RefreshCw, PlusCircle, Server, Thermometer, Battery, Cpu, MemoryStick, Network, Clock, X, Check, Copy, Terminal, ChevronRight } from 'lucide-react';
 import { getNodes, enrollComb } from '../api';
 import type { CombNode, CellView } from '../types';
-
-// ─── Helpers (same as honeycomb-ui utils.tsx) ─────────────────────────────────
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-function MetricBar({ label, value }: { label: string; value?: number | null }) {
-  const pct = Math.min(100, value ?? 0);
-  const color = pct >= 90 ? '#C5221F' : pct >= 70 ? '#E37400' : '#1E8E3E';
-  return (
-    <div className="node-metric-row">
-      <span className="node-metric-name">{label}</span>
-      <div className="metric-bar" style={{ flex: 1 }}>
-        <div className="metric-bar-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="metric-bar-label">{value != null ? `${Math.round(value)}%` : '—'}</span>
-    </div>
-  );
-}
-
-function StatusBadge({ online }: { online: boolean }) {
-  return (
-    <span className={`badge ${online ? 'badge-online' : 'badge-offline'}`}>
-      <span className="badge-dot" style={{ background: online ? '#1E8E3E' : '#5F6368' }} />
-      {online ? 'Online' : 'Offline'}
-    </span>
-  );
-}
+import { MetricBar } from '../shared/MetricBar';
+import { StatusBadge } from '../shared/StatusBadge';
+import { formatRelative } from '../shared/formatRelative';
 
 // ─── CombDetailModal ──────────────────────────────────────────────────────────
 

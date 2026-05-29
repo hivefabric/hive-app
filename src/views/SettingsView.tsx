@@ -5,16 +5,10 @@ import {
 } from 'lucide-react';
 import {
   getNodes, enrollComb, getPreferences, updatePreferences,
-  createLLMProvider, setQueenConfig, invalidateQueenCache,
+  createLLMProvider, setQueenConfig, invalidateQueenCache, getModels,
 } from '../api';
-import type { CombNode, UserPreferences } from '../types';
+import type { CombNode, UserPreferences, ModelEntry } from '../types';
 import { CopyBlock } from '../shared/CopyBlock';
-
-/** Extract model from inference URN, e.g. "qwen3.6" */
-function modelFromUrn(urn: string): string | null {
-  const m = urn.match(/oasf:\/\/commons\/inference\/([^/]+)\/v\d+/);
-  return m ? m[1].replace(/-/g, ':') : null;
-}
 
 interface SettingsProps {
   onViewHive: () => void;
@@ -176,9 +170,9 @@ function QueenTab() {
 
   // local queen form
   const [queenType, setQueenType] = useState<'local' | 'cloud'>('local');
-  const [selectedCombId, setSelectedCombId] = useState('');
-  const [model, setModel] = useState('');
-  const [endpoint, setEndpoint] = useState('http://localhost:11434');
+  const [catalogModels, setCatalogModels] = useState<ModelEntry[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelEntry | null>(null);
 
   // cloud form
   const [provider, setProvider] = useState<'anthropic' | 'openai' | 'openai_compat'>('anthropic');
@@ -194,43 +188,56 @@ function QueenTab() {
     anthropic: 'claude-3-5-haiku-latest', openai: 'gpt-4o-mini', openai_compat: '',
   };
 
+  // Derive available GB from the first queen-capable comb
+  const queenComb = combs.find(c => c.queen_capable) ?? combs[0] ?? null;
+  const availableGb = queenComb?.available_memory_mb ? queenComb.available_memory_mb / 1024 : null;
+
   useEffect(() => {
     Promise.all([getNodes(), getPreferences()])
       .then(([nodes, p]) => {
         setCombs(nodes.filter(n => n.online));
         setPrefs(p);
-        // Pre-fill from existing config
         if (p.queen_type) setQueenType(p.queen_type as 'local' | 'cloud');
-        if (p.queen_comb_id) setSelectedCombId(p.queen_comb_id);
-        if (p.queen_model) setModel(p.queen_model);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  function handleSelectComb(combId: string) {
-    setSelectedCombId(combId);
-    const comb = combs.find(c => c.node_id === combId);
-    if (!comb) return;
-    const inferenceUrns = (comb.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
-    if (inferenceUrns.length > 0 && !model) setModel(modelFromUrn(inferenceUrns[0]) ?? '');
-  }
+  // Load model catalog when local tab is active
+  useEffect(() => {
+    if (queenType !== 'local') return;
+    setCatalogLoading(true);
+    getModels()
+      .then(all => {
+        const eligible = all.filter(m => m.queen_eligible);
+        setCatalogModels(eligible);
+        if (eligible.length > 0 && !selectedModel) {
+          const avail = availableGb;
+          const fits = avail != null
+            ? eligible.find(m => m.min_ram_gb <= avail) ?? eligible[0]
+            : eligible[0];
+          setSelectedModel(fits);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCatalogLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queenType]);
+
+  // Worker slot preview
+  const workerSlots = selectedModel && availableGb != null
+    ? Math.max(0, Math.floor((availableGb - selectedModel.min_ram_gb) / 2))
+    : null;
 
   async function save() {
     setSaving(true); setError('');
     try {
       if (queenType === 'local') {
-        const comb = combs.find(c => c.node_id === selectedCombId);
-        if (!comb) { setError('Select a comb'); setSaving(false); return; }
-        const queensUrn = (comb.advertised_capability_urns ?? []).find(u => u.includes('/queen/'));
-        const prov = await createLLMProvider({
-          name: 'queen-ollama', provider: 'openai', api_key: 'ollama',
-          base_url: endpoint.trim(), model: model.trim(), is_default: false,
-        });
+        if (!selectedModel) { setError('Select a model'); setSaving(false); return; }
         await setQueenConfig({
-          queen_type: 'local', queen_comb_id: comb.node_id,
-          queen_urn: queensUrn ?? 'oasf://hive/queen/v1',
-          queen_llm_provider_id: prov.id, queen_model: model.trim(),
+          queen_type: 'local',
+          queen_urn: 'oasf://hive/queen/v1',
+          queen_model: selectedModel.ollama_name,
         });
       } else {
         if (!apiKey.trim()) { setError('API key required'); setSaving(false); return; }
@@ -252,8 +259,6 @@ function QueenTab() {
     } finally { setSaving(false); }
   }
 
-  const queenCombs = combs.filter(c => c.queen_capable);
-
   if (loading) return (
     <div className="settings-section">
       <div className="text-secondary" style={{ padding: 16 }}><span className="spinner spinner--sm" /> Loading…</div>
@@ -274,7 +279,6 @@ function QueenTab() {
               </div>
               <div className="text-secondary" style={{ fontSize: 12 }}>
                 {prefs.queen_model ?? 'model not set'}
-                {prefs.queen_comb_id && ` · comb ${prefs.queen_comb_id.slice(0, 8)}…`}
               </div>
             </div>
           </div>
@@ -306,63 +310,56 @@ function QueenTab() {
           ))}
         </div>
 
-        {/* Local: comb card list */}
+        {/* Local: model catalog picker */}
         {queenType === 'local' && (
-          queenCombs.length === 0 ? (
+          catalogLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12 }}>
+              <span className="spinner spinner--sm" />
+              <span className="text-secondary">Loading model catalog…</span>
+            </div>
+          ) : catalogModels.length === 0 ? (
             <div className="settings-empty">
-              No queen-capable combs detected. A comb needs ≥8 cores and ≥8 GB RAM to host a queen.
+              No queen-eligible models found. Check that honeycomb is running.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-              {queenCombs.map(c => {
-                const sel = selectedCombId === c.node_id;
-                const inferenceUrns = (c.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
-                const models = inferenceUrns.map(u => modelFromUrn(u)).filter(Boolean) as string[];
+              {catalogModels.map(m => {
+                const sel = selectedModel?.id === m.id;
+                const fits = availableGb != null ? m.min_ram_gb <= availableGb : true;
                 return (
-                  <div key={c.node_id}
+                  <button
+                    key={m.id}
                     className={`wizard-queen-option${sel ? ' wizard-queen-option--active' : ''}`}
-                    onClick={() => handleSelectComb(c.node_id)}
-                    style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}
+                    onClick={() => setSelectedModel(m)}
+                    style={{ gap: 10, padding: '10px 14px', opacity: fits ? 1 : 0.55 }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Server size={16} style={{ flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div className="wizard-queen-option__title">
-                          {c.node_metadata?.device_name || c.node_id.slice(0, 12)}
-                        </div>
-                        <div className="wizard-queen-option__desc text-secondary">
-                          {c.node_metadata?.operating_system ?? ''}
-                          {c.available_memory_mb ? ` · ${Math.round(c.available_memory_mb / 1024)}GB` : ''}
-                        </div>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div className="wizard-queen-option__title">{m.display_name}</div>
+                      <div className="wizard-queen-option__desc text-secondary">
+                        {m.size_gb}GB · {m.tier} · min {m.min_ram_gb}GB RAM
+                        {m.notes ? ` · ${m.notes}` : ''}
                       </div>
-                      {sel
-                        ? <Check size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />
-                        : <div style={{ width: 15, height: 15, borderRadius: '50%', border: '1.5px solid var(--color-border)', flexShrink: 0 }} />
-                      }
                     </div>
-                    {sel && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onClick={e => e.stopPropagation()}>
-                        <div className="form-row">
-                          <div className="form-group" style={{ flex: 2 }}>
-                            <label className="form-label">Model</label>
-                            {models.length > 0 ? (
-                              <select className="input" value={model} onChange={e => setModel(e.target.value)}>
-                                {models.map(m => <option key={m} value={m}>{m}</option>)}
-                              </select>
-                            ) : (
-                              <input className="input" value={model} onChange={e => setModel(e.target.value)} placeholder="qwen3.6:latest" />
-                            )}
-                          </div>
-                          <div className="form-group" style={{ flex: 3 }}>
-                            <label className="form-label">Ollama endpoint</label>
-                            <input className="input" value={endpoint} onChange={e => setEndpoint(e.target.value)} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    {sel && <Check size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
+                  </button>
                 );
               })}
+
+              {/* Capacity preview */}
+              {selectedModel && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'var(--color-surface-variant)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: 'var(--color-text-secondary)',
+                  lineHeight: 1.5,
+                }}>
+                  {workerSlots != null
+                    ? `Leaves ~${workerSlots} worker slot${workerSlots !== 1 ? 's' : ''} for other tasks`
+                    : `Selected: ${selectedModel.display_name}`}
+                </div>
+              )}
             </div>
           )
         )}
@@ -402,7 +399,8 @@ function QueenTab() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <button className="btn btn--primary" style={{ alignSelf: 'flex-start' }} onClick={save} disabled={saving}>
+        <button className="btn btn--primary" style={{ alignSelf: 'flex-start' }} onClick={save}
+          disabled={saving || (queenType === 'local' && !selectedModel)}>
           {saving ? <span className="spinner spinner--sm" /> : saved ? <Check size={14} /> : null}
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save queen'}
         </button>

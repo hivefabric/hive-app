@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, ChevronRight, ChevronLeft, Server, Cloud, Terminal, RefreshCw, X } from 'lucide-react';
-import { getNodes, enrollComb, createLLMProvider, setQueenConfig, invalidateQueenCache } from '../api';
-import type { CombNode } from '../types';
+import { getNodes, enrollComb, setQueenConfig, invalidateQueenCache, getModels, createLLMProvider } from '../api';
+import type { CombNode, ModelEntry } from '../types';
 import { CopyBlock } from '../shared/CopyBlock';
 
 interface WizardProps {
@@ -16,12 +16,6 @@ const STEP_LABELS = ['Add a comb', 'Configure queen', 'Ready'];
 
 function shortUrn(urn: string): string {
   return urn.replace('oasf://', '').split('/')[2] ?? urn;
-}
-
-/** Extract model name from inference URN, e.g. "qwen3.6" from oasf://commons/inference/qwen3.6/v1 */
-function modelFromUrn(urn: string): string | null {
-  const m = urn.match(/oasf:\/\/commons\/inference\/([^/]+)\/v\d+/);
-  return m ? m[1].replace(/-/g, ':') : null;
 }
 
 // ─── Step 1: Add Comb ─────────────────────────────────────────────────────────
@@ -162,85 +156,6 @@ function StepComb({
   );
 }
 
-// ─── Queen comb card ──────────────────────────────────────────────────────────
-
-function QueenCombCard({
-  comb,
-  selected,
-  model,
-  endpoint,
-  onSelect,
-  onModelChange,
-  onEndpointChange,
-}: {
-  comb: CombNode;
-  selected: boolean;
-  model: string;
-  endpoint: string;
-  onSelect: () => void;
-  onModelChange: (m: string) => void;
-  onEndpointChange: (e: string) => void;
-}) {
-  const inferenceUrns = (comb.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
-  const models = inferenceUrns.map(u => modelFromUrn(u)).filter(Boolean) as string[];
-
-  return (
-    <div
-      className={`wizard-queen-option${selected ? ' wizard-queen-option--active' : ''}`}
-      onClick={onSelect}
-      style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}
-    >
-      {/* Comb header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Server size={18} style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <div className="wizard-queen-option__title">
-            {comb.node_metadata?.device_name || comb.node_metadata?.hostname || comb.node_id.slice(0, 12)}
-          </div>
-          <div className="wizard-queen-option__desc text-secondary">
-            {comb.node_metadata?.operating_system ?? 'Unknown OS'}
-            {comb.available_memory_mb ? ` · ${Math.round(comb.available_memory_mb / 1024)}GB avail` : ''}
-            {comb.cpu_cores ? ` · ${comb.cpu_cores} cores` : ''}
-          </div>
-        </div>
-        {selected
-          ? <CheckCircle size={16} color="var(--color-primary)" style={{ flexShrink: 0 }} />
-          : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid var(--color-border)', flexShrink: 0 }} />
-        }
-      </div>
-
-      {/* Model + endpoint selectors — only when selected */}
-      {selected && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} onClick={e => e.stopPropagation()}>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">Model (for queen thinking)</label>
-              {models.length > 0 ? (
-                <select className="input" value={model} onChange={e => onModelChange(e.target.value)}>
-                  {models.map(m => <option key={m} value={m}>{m}</option>)}
-                  <option value="_custom">Custom…</option>
-                </select>
-              ) : (
-                <input className="input" value={model} onChange={e => onModelChange(e.target.value)} placeholder="e.g. qwen3.6:latest" />
-              )}
-              {model === '_custom' && (
-                <input className="input" style={{ marginTop: 6 }} placeholder="model name" onChange={e => onModelChange(e.target.value)} />
-              )}
-            </div>
-            <div className="form-group" style={{ flex: 3 }}>
-              <label className="form-label">Ollama endpoint</label>
-              <input className="input" value={endpoint} onChange={e => onEndpointChange(e.target.value)} placeholder="http://localhost:11434" />
-            </div>
-          </div>
-          <p className="text-secondary" style={{ margin: 0, fontSize: 12, lineHeight: 1.4 }}>
-            The queen uses this model for reasoning and task planning. It must support tool calling.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Step 2: Configure Queen ──────────────────────────────────────────────────
 
 function StepQueen({
@@ -256,16 +171,14 @@ function StepQueen({
 }) {
   const [queenType, setQueenType] = useState<QueenType>('local');
 
-  // Local queen state
-  const queenCombs = combs.filter(c => c.queen_capable);
-  const [selectedCombId, setSelectedCombId] = useState<string>(() => queenCombs[0]?.node_id ?? '');
-  const [model, setModel] = useState<string>(() => {
-    const first = queenCombs[0];
-    if (!first) return '';
-    const inferenceUrns = (first.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
-    return inferenceUrns.length > 0 ? (modelFromUrn(inferenceUrns[0]) ?? '') : '';
-  });
-  const [endpoint, setEndpoint] = useState('http://localhost:11434');
+  // Local queen state — model catalog
+  const [models, setModels] = useState<ModelEntry[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelEntry | null>(null);
+
+  // Derive available GB from the first queen-capable comb (for preview)
+  const queenComb = combs.find(c => c.queen_capable) ?? combs[0] ?? null;
+  const availableGb = queenComb?.available_memory_mb ? queenComb.available_memory_mb / 1024 : null;
 
   // Cloud state
   const [provider, setProvider] = useState<'anthropic' | 'openai' | 'openai_compat'>('anthropic');
@@ -282,40 +195,40 @@ function StepQueen({
     openai_compat: '',
   };
 
-  // Update model when selected comb changes
-  function handleSelectComb(combId: string) {
-    setSelectedCombId(combId);
-    const comb = combs.find(c => c.node_id === combId);
-    if (!comb) return;
-    const inferenceUrns = (comb.advertised_capability_urns ?? []).filter(u => u.includes('/inference/'));
-    if (inferenceUrns.length > 0) setModel(modelFromUrn(inferenceUrns[0]) ?? '');
-  }
+  // Load model catalog when local tab is active
+  useEffect(() => {
+    if (queenType !== 'local') return;
+    setModelsLoading(true);
+    getModels()
+      .then(all => {
+        const eligible = all.filter(m => m.queen_eligible);
+        setModels(eligible);
+        // Pre-select the first model that fits available RAM
+        if (eligible.length > 0) {
+          const fits = availableGb != null
+            ? eligible.find(m => m.min_ram_gb <= availableGb) ?? eligible[0]
+            : eligible[0];
+          setSelectedModel(fits);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setModelsLoading(false));
+  }, [queenType, availableGb]);
+
+  // Worker slot preview
+  const workerSlots = selectedModel && availableGb != null
+    ? Math.max(0, Math.floor((availableGb - selectedModel.min_ram_gb) / 2))
+    : null;
 
   async function handleSave() {
     setSaving(true); setError('');
     try {
       if (queenType === 'local') {
-        const comb = combs.find(c => c.node_id === selectedCombId);
-        if (!comb) { setError('Select a comb first'); setSaving(false); return; }
-        const queensUrn = (comb.advertised_capability_urns ?? []).find(u => u.includes('/queen/'));
-        if (!model.trim()) { setError('Enter a model name'); setSaving(false); return; }
-
-        // Create (or update) a dedicated LLM provider for the queen
-        const prov = await createLLMProvider({
-          name: 'queen-ollama',
-          provider: 'openai',
-          api_key: 'ollama',
-          base_url: endpoint.trim() || 'http://localhost:11434',
-          model: model.trim(),
-          is_default: false,
-        });
-
+        if (!selectedModel) { setError('Select a model first'); setSaving(false); return; }
         await setQueenConfig({
           queen_type: 'local',
-          queen_comb_id: comb.node_id,
-          queen_urn: queensUrn ?? 'oasf://hive/queen/v1',
-          queen_llm_provider_id: prov.id,
-          queen_model: model.trim(),
+          queen_urn: 'oasf://hive/queen/v1',
+          queen_model: selectedModel.ollama_name,
         });
       } else {
         if (!apiKey.trim()) { setError('API key is required'); setSaving(false); return; }
@@ -375,27 +288,56 @@ function StepQueen({
           </button>
         </div>
 
-        {/* Local: comb card list */}
+        {/* Local: model catalog picker */}
         {queenType === 'local' && (
-          queenCombs.length === 0 ? (
+          modelsLoading ? (
+            <div className="wizard-waiting">
+              <span className="spinner spinner--sm" />
+              <span className="text-secondary" style={{ fontSize: 14 }}>Loading model catalog…</span>
+            </div>
+          ) : models.length === 0 ? (
             <div className="wizard-warning">
-              None of your combs are queen-capable yet. A comb needs at least 8 cores and 8 GB RAM to run as queen.
-              You can skip this step and configure later, or add a more powerful comb first.
+              No queen-eligible models found in the catalog. Check that honeycomb is running.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {queenCombs.map(c => (
-                <QueenCombCard
-                  key={c.node_id}
-                  comb={c}
-                  selected={selectedCombId === c.node_id}
-                  model={selectedCombId === c.node_id ? model : ''}
-                  endpoint={endpoint}
-                  onSelect={() => handleSelectComb(c.node_id)}
-                  onModelChange={setModel}
-                  onEndpointChange={setEndpoint}
-                />
-              ))}
+              {models.map(m => {
+                const sel = selectedModel?.id === m.id;
+                const fits = availableGb != null ? m.min_ram_gb <= availableGb : true;
+                return (
+                  <button
+                    key={m.id}
+                    className={`wizard-queen-option${sel ? ' wizard-queen-option--active' : ''}`}
+                    onClick={() => setSelectedModel(m)}
+                    style={{ gap: 10, padding: '10px 14px', opacity: fits ? 1 : 0.55 }}
+                  >
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div className="wizard-queen-option__title">{m.display_name}</div>
+                      <div className="wizard-queen-option__desc text-secondary">
+                        {m.size_gb}GB · {m.tier} · min {m.min_ram_gb}GB RAM
+                        {m.notes ? ` · ${m.notes}` : ''}
+                      </div>
+                    </div>
+                    {sel && <CheckCircle size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
+                  </button>
+                );
+              })}
+
+              {/* Capacity preview */}
+              {selectedModel && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'var(--color-surface-variant)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: 'var(--color-text-secondary)',
+                  lineHeight: 1.5,
+                }}>
+                  {availableGb != null
+                    ? `Your comb can run: 1× ${selectedModel.display_name} + ~${workerSlots} worker slot${workerSlots !== 1 ? 's' : ''}`
+                    : `Selected: ${selectedModel.display_name}`}
+                </div>
+              )}
             </div>
           )
         )}
@@ -445,7 +387,7 @@ function StepQueen({
           <button
             className="btn btn--primary"
             onClick={handleSave}
-            disabled={saving || (queenType === 'cloud' && !apiKey.trim())}
+            disabled={saving || (queenType === 'local' && !selectedModel) || (queenType === 'cloud' && !apiKey.trim())}
           >
             {saving ? <span className="spinner spinner--sm" /> : null}
             {saving ? 'Saving…' : <>Set queen <ChevronRight size={15} /></>}
