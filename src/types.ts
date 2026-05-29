@@ -94,11 +94,15 @@ export interface LLMProvider {
 
 export interface CreateLLMProviderRequest {
   name: string;
-  provider_type: string;
+  provider: string;
   api_key: string;
   base_url?: string;
   model?: string;
+  is_default?: boolean;
 }
+
+// alias kept for WizardView which uses provider_type
+export type { CreateLLMProviderRequest as LLMProviderRequest };
 
 // ─── Preferences ─────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send } from 'lucide-react';
-import { runSubagent, describeCluster } from '../api';
-import type { ChatMessage, CapabilityInfo } from '../types';
+import { Send, Lock } from 'lucide-react';
+import { chat } from '../api';
+import type { ChatMessage } from '../types';
 
 function generateId() {
   return Math.random().toString(36).slice(2);
@@ -11,20 +11,23 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function PrivacyIndicator() {
+  const queenType = localStorage.getItem('hf_queen_type') ?? 'local';
+  const isLocal = queenType === 'local' || !queenType;
+  return (
+    <div className="chat-privacy-badge" title={isLocal ? 'Tasks run on your combs' : 'Tasks routed via cloud queen'}>
+      <Lock size={11} />
+      {isLocal ? 'Private · My Combs' : 'Cloud Queen'}
+    </div>
+  );
+}
+
 export default function ChatView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [capabilities, setCapabilities] = useState<CapabilityInfo[]>([]);
-  const [selectedCap, setSelectedCap] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    describeCluster()
-      .then((res) => setCapabilities(res.capabilities))
-      .catch(() => setCapabilities([]));
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,7 +50,6 @@ export default function ChatView() {
       content: trimmed,
       timestamp: Date.now(),
     };
-
     const aiMsg: ChatMessage = {
       id: generateId(),
       role: 'assistant',
@@ -59,23 +61,16 @@ export default function ChatView() {
     setMessages((prev) => [...prev, userMsg, aiMsg]);
     setInput('');
     setSending(true);
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     try {
       setMessages((prev) =>
         prev.map((m) => (m.id === aiMsg.id ? { ...m, status: 'running' } : m)),
       );
-
-      const result = await runSubagent(trimmed, selectedCap || undefined);
-
+      const result = await chat(trimmed);
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === aiMsg.id
-            ? { ...m, content: result, status: 'succeeded' }
-            : m,
+          m.id === aiMsg.id ? { ...m, content: result, status: 'succeeded' } : m,
         ),
       );
     } catch (err) {
@@ -107,7 +102,7 @@ export default function ChatView() {
             <div className="chat-welcome-icon">🐝</div>
             <h2>Chat with your Hive</h2>
             <p className="text-secondary">
-              Submit a prompt and your distributed network of combs will handle it.
+              Your queen will break down requests and route tasks to your combs automatically.
             </p>
           </div>
         ) : (
@@ -116,9 +111,7 @@ export default function ChatView() {
               key={msg.id}
               className={`message-row${msg.role === 'user' ? ' message-row--user' : ''}`}
             >
-              <div
-                className={`message-avatar${msg.role === 'user' ? ' message-avatar--user' : ' message-avatar--ai'}`}
-              >
+              <div className={`message-avatar${msg.role === 'user' ? ' message-avatar--user' : ' message-avatar--ai'}`}>
                 {msg.role === 'user' ? 'U' : '🐝'}
               </div>
               <div>
@@ -144,49 +137,29 @@ export default function ChatView() {
       </div>
 
       <div className="chat-input-area">
+        <PrivacyIndicator />
         <div className="chat-input-bar">
           <textarea
             ref={textareaRef}
             className="chat-textarea"
             placeholder="Message the hive… (Enter to send, Shift+Enter for newline)"
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              autoResize();
-            }}
+            onChange={(e) => { setInput(e.target.value); autoResize(); }}
             onKeyDown={handleKeyDown}
             rows={1}
             disabled={sending}
           />
-          <div className="chat-input-actions">
-            {capabilities.length > 0 && (
-              <select
-                className="chat-capability-select"
-                value={selectedCap}
-                onChange={(e) => setSelectedCap(e.target.value)}
-                title="Select capability"
-              >
-                <option value="">Auto-route</option>
-                {capabilities.map((cap) => (
-                  <option key={cap.urn} value={cap.urn}>
-                    {cap.urn}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button
-              className="btn btn--primary btn--icon"
-              onClick={handleSend}
-              disabled={!input.trim() || sending}
-              title="Send (Enter)"
-            >
-              {sending ? (
-                <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
-              ) : (
-                <Send size={15} />
-              )}
-            </button>
-          </div>
+          <button
+            className="btn btn--primary btn--icon"
+            onClick={handleSend}
+            disabled={!input.trim() || sending}
+            title="Send (Enter)"
+          >
+            {sending
+              ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
+              : <Send size={15} />
+            }
+          </button>
         </div>
       </div>
     </div>

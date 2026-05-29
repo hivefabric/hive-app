@@ -1,6 +1,6 @@
-import { MessageSquare, Network, Cpu, Settings } from 'lucide-react';
+import { MessageSquare, Network, Settings } from 'lucide-react';
 
-export type NavItem = 'chat' | 'hive' | 'models' | 'settings';
+export type NavItem = 'chat' | 'hive' | 'settings';
 
 interface SidebarProps {
   active: NavItem;
@@ -8,26 +8,9 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
-  {
-    id: 'chat',
-    label: 'Chat',
-    icon: <MessageSquare size={18} />,
-  },
-  {
-    id: 'hive',
-    label: 'My Hive',
-    icon: <Network size={18} />,
-  },
-  {
-    id: 'models',
-    label: 'Models',
-    icon: <Cpu size={18} />,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: <Settings size={18} />,
-  },
+  { id: 'chat',     label: 'Chat',     icon: <MessageSquare size={18} /> },
+  { id: 'hive',     label: 'My Hive',  icon: <Network size={18} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
 ];
 
 export default function Sidebar({ active, onNavigate }: SidebarProps) {
@@ -56,9 +39,7 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="sidebar-footer">
-        v0.1.0
-      </div>
+      <div className="sidebar-footer">v0.1.0</div>
     </aside>
   );
 }

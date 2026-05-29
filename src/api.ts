@@ -72,6 +72,38 @@ export async function runSubagent(
   return textContent?.text ?? '';
 }
 
+/** Route via the gateway's LLM tool-loop (cloud queen path). */
+export async function orchestrate(
+  prompt: string,
+  provider_id: string,
+): Promise<string> {
+  const res = await fetch(`${GATEWAY}/v1/orchestrate`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }],
+      provider_id,
+      max_iterations: 10,
+    }),
+  });
+  const data = await handleResponse<{ final_message?: string; error?: string }>(res);
+  return data.final_message ?? '';
+}
+
+/**
+ * Send a chat message using whichever queen is configured in localStorage.
+ * Falls back to auto-route if no queen is configured.
+ */
+export async function chat(prompt: string): Promise<string> {
+  const queenType = localStorage.getItem('hf_queen_type');
+  if (queenType === 'cloud') {
+    const providerId = localStorage.getItem('hf_queen_provider_id');
+    if (providerId) return orchestrate(prompt, providerId);
+  }
+  const queenUrn = localStorage.getItem('hf_queen_urn');
+  return runSubagent(prompt, queenUrn || undefined);
+}
+
 export async function describeCluster(): Promise<DescribeClusterResponse> {
   const result = await callTool({
     name: 'describe_cluster',
