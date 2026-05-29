@@ -99,15 +99,9 @@ function NodeCard({ node }: { node: CombNode }) {
           {(node.advertised_capability_urns ?? []).slice(0, 4).map(u => {
             const seg = u.replace('oasf://', '').split('/');
             const label = seg[2] ?? seg[seg.length - 1] ?? u;
-            const isQueen = u.includes('/queen/');
             return (
-              <span
-                key={u}
-                className="node-tag"
-                title={u}
-                style={isQueen ? { background: 'rgba(11,87,208,0.12)', color: 'var(--color-primary)', fontWeight: 600 } : undefined}
-              >
-                {isQueen ? '👑 ' : ''}{label}
+              <span key={u} className="node-tag" title={u}>
+                {label}
               </span>
             );
           })}

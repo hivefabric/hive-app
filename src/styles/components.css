@@ -1594,9 +1594,18 @@
   background: rgba(11, 87, 208, 0.1);
   color: var(--color-primary);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 /* badge variants for node status */
+/* Node status badges use explicit .badge-dot span — suppress the ::before dot */
+.badge-online, .badge-offline {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500; padding: 2px 6px;
+  border-radius: 100px; white-space: nowrap;
+}
 .badge-online  { background: #E6F4EA; color: #1E8E3E; }
 .badge-offline { background: var(--color-surface-variant); color: var(--color-text-secondary); }
-.badge-dot     { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; }
+.badge-online::before, .badge-offline::before { display: none; }
+
+.badge-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
