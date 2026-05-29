@@ -67,9 +67,32 @@ export async function runSubagent(
 ): Promise<string> {
   const args: Record<string, unknown> = { prompt };
   if (capability_urn) args.capability_urn = capability_urn;
-  const result = await callTool({ name: 'run_subagent', arguments: args });
-  const textContent = result.content.find((c) => c.type === 'text');
-  return textContent?.text ?? '';
+
+  // The gateway returns RunSubagentResponse directly (not MCP content envelope).
+  // Shape: { task_id, status, output: { output: { ... }, status, ... }, ... }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw: any = await handleResponse(
+    await fetch(`${GATEWAY}/v1/mcp/tools/call`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name: 'run_subagent', arguments: args }),
+    }),
+  );
+
+  if (raw?.error) throw new Error(raw.message ?? raw.error);
+
+  // Navigate the nested output to find the text response.
+  const inner = raw?.output?.output ?? raw?.output ?? raw;
+
+  // Queen response: { final_message: "..." }
+  if (typeof inner?.final_message === 'string') return inner.final_message;
+
+  // Direct LLM response: { choices: [{ message: { content: "..." } }] }
+  const content = inner?.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content;
+
+  // Fallback: stringify whatever we got
+  return typeof inner === 'string' ? inner : JSON.stringify(inner ?? raw);
 }
 
 /** Route via the gateway's LLM tool-loop (cloud queen path). */
@@ -146,14 +169,15 @@ export async function chat(prompt: string): Promise<string> {
 }
 
 export async function describeCluster(): Promise<DescribeClusterResponse> {
-  const result = await callTool({
-    name: 'describe_cluster',
-    arguments: {},
-  });
-  const textContent = result.content.find((c) => c.type === 'text');
-  if (!textContent?.text) return { capabilities: [], total_combs: 0, online_combs: 0 };
+  // The gateway returns DescribeClusterResponse directly (not MCP content envelope).
   try {
-    return JSON.parse(textContent.text) as DescribeClusterResponse;
+    const res = await fetch(`${GATEWAY}/v1/mcp/tools/call`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name: 'describe_cluster', arguments: {} }),
+    });
+    const raw = await handleResponse<DescribeClusterResponse>(res);
+    return raw ?? { capabilities: [], total_combs: 0, online_combs: 0 };
   } catch {
     return { capabilities: [], total_combs: 0, online_combs: 0 };
   }
