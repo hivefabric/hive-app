@@ -189,8 +189,10 @@ export default function HiveView({ onGoToInstall }: HiveViewProps) {
           </button>
         </div>
       ) : (
-        <div className="node-grid" style={{ padding: '0 24px 24px' }}>
-          {nodes.map(n => <NodeCard key={n.node_id} node={n} />)}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+          <div className="node-grid">
+            {nodes.map(n => <NodeCard key={n.node_id} node={n} />)}
+          </div>
         </div>
       )}
     </div>
