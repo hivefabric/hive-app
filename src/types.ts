@@ -85,6 +85,7 @@ export interface CombNode {
     operating_system?: string;
     device_type?: string | null;
     agent_version?: string | null;
+    virtualization_type?: string | null;
   } | null;
   sensor_readings?: Record<string, number>;
   node_report?: {
@@ -98,6 +99,9 @@ export interface CombNode {
   runtime_capabilities?: string[];
   advertised_capability_urns?: string[];
   queen_capable?: boolean;
+  private_ip?: string | null;
+  public_ip?: string | null;
+  node_api_base_url?: string | null;
   roles?: string[];
   cells?: CellView[];
 }

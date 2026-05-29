@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, PlusCircle, Server, Cpu, MemoryStick, Network, Clock, X, Check, Copy, Terminal } from 'lucide-react';
+import { RefreshCw, PlusCircle, Server, Clock, X, Check, Copy, Terminal } from 'lucide-react';
 import { getNodes, enrollComb } from '../api';
 import type { CombNode, CellView } from '../types';
 import { formatRelative } from '../shared/formatRelative';
@@ -39,14 +39,35 @@ function CombDetailModal({ node, onClose }: { node: CombNode; onClose: () => voi
         </div>
 
         <div className="modal-body" style={{ gap: 20 }}>
-          {/* Hardware summary */}
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13 }}>
+          {/* Machine info grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
             {node.node_metadata?.operating_system && (
-              <span className="text-secondary">{node.node_metadata.operating_system} · {node.node_metadata.architecture}</span>
+              <div><span className="text-secondary">OS · arch</span><br /><strong>{node.node_metadata.operating_system} {node.node_metadata.architecture}</strong></div>
             )}
-            {node.cpu_cores && <span><Cpu size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{node.cpu_cores} cores</span>}
-            {availableGb && <span><MemoryStick size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{availableGb} GB avail</span>}
-            {node.active_tasks > 0 && <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}><Network size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />{node.active_tasks} active tasks</span>}
+            {node.node_metadata?.hostname && (
+              <div><span className="text-secondary">Hostname</span><br /><strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{node.node_metadata.hostname}</strong></div>
+            )}
+            {node.cpu_cores && (
+              <div><span className="text-secondary">CPU</span><br /><strong>{node.cpu_cores} cores</strong></div>
+            )}
+            {availableGb && (
+              <div><span className="text-secondary">RAM available</span><br /><strong>{availableGb} GB</strong></div>
+            )}
+            {node.private_ip && (
+              <div><span className="text-secondary">Private IP</span><br /><strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{node.private_ip}</strong></div>
+            )}
+            {node.public_ip && (
+              <div><span className="text-secondary">Public IP</span><br /><strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{node.public_ip}</strong></div>
+            )}
+            {node.node_api_base_url && (
+              <div><span className="text-secondary">Node API</span><br /><strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{node.node_api_base_url}</strong></div>
+            )}
+            {node.node_metadata?.virtualization_type && (
+              <div><span className="text-secondary">Runtime</span><br /><strong>{node.node_metadata.virtualization_type}</strong></div>
+            )}
+            {node.active_tasks > 0 && (
+              <div><span className="text-secondary">Active tasks</span><br /><strong style={{ color: 'var(--color-primary)' }}>{node.active_tasks}</strong></div>
+            )}
           </div>
 
           {/* Cells */}
