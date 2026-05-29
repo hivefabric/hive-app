@@ -63,6 +63,7 @@ export interface CombNode {
   wasm: boolean;
   runtime_capabilities?: string[];
   advertised_capability_urns?: string[];
+  queen_capable?: boolean;
   roles?: string[];
 }
 

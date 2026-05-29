@@ -1471,3 +1471,134 @@
   display: inline-flex; align-items: center; gap: 6px;
 }
 .btn--danger:hover { background: rgba(234, 67, 53, 0.18); }
+
+/* ─── Node card (identical to honeycomb-ui ComputeView) ─────────────────── */
+
+.hive-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.hive-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-6) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.hive-view-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.hive-view-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+}
+
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.node-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.node-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.node-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.node-card-id {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.node-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-metric-name {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  min-width: 56px;
+}
+
+.metric-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.metric-bar-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  min-width: 32px;
+  text-align: right;
+}
+
+.node-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.node-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: rgba(11, 87, 208, 0.1);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+/* badge variants for node status */
+.badge-online  { background: #E6F4EA; color: #1E8E3E; }
+.badge-offline { background: var(--color-surface-variant); color: var(--color-text-secondary); }
+.badge-dot     { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; }
