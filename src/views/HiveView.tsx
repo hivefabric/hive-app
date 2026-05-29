@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, PlusCircle, Server, Thermometer, Battery, Cpu, MemoryStick, Network, Clock } from 'lucide-react';
-import { getNodes } from '../api';
+import { RefreshCw, PlusCircle, Server, Thermometer, Battery, Cpu, MemoryStick, Network, Clock, X, Check, Copy, Terminal } from 'lucide-react';
+import { getNodes, enrollComb } from '../api';
 import type { CombNode } from '../types';
 
 // ─── Helpers (same as honeycomb-ui utils.tsx) ─────────────────────────────────
@@ -141,16 +141,119 @@ function NodeCard({ node }: { node: CombNode }) {
   );
 }
 
-// ─── HiveView ─────────────────────────────────────────────────────────────────
+// ─── Add Comb modal ───────────────────────────────────────────────────────────
 
-interface HiveViewProps {
-  onGoToInstall: () => void;
+function AddCombModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const [name, setName] = useState('my-comb');
+  const [port, setPort] = useState(7070);
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<{ command: string; config_toml: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const res = await enrollComb(name, 'llm', port);
+      setResult(res);
+    } catch { /* ignore */ } finally { setGenerating(false); }
+  }
+
+  function copy(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-dialog">
+        <div className="modal-header">
+          <span className="modal-title">Add a Comb</span>
+          <button className="btn btn--ghost btn--icon" style={{ padding: 4 }} onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <p className="text-secondary" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
+            Run the comb agent on any device — your laptop, a server, or a VM. It will appear here once connected.
+          </p>
+
+          {!result ? (
+            <>
+              <div className="form-row">
+                <div className="form-group" style={{ flex: 2 }}>
+                  <label className="form-label">Name</label>
+                  <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="my-comb" />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Port</label>
+                  <input className="input" type="number" value={port} onChange={e => setPort(+e.target.value)} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label className="form-label">Run on your device:</label>
+              <div className="copy-block">
+                <pre className="copy-block__code">{result.command}</pre>
+                <button className="copy-block__btn btn btn--ghost btn--sm" onClick={() => copy(result.command)}>
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <details>
+                <summary className="text-secondary" style={{ cursor: 'pointer', fontSize: 12, userSelect: 'none' }}>Show config file</summary>
+                <div style={{ marginTop: 6 }}>
+                  <div className="copy-block">
+                    <pre className="copy-block__code">{result.config_toml}</pre>
+                    <button className="copy-block__btn btn btn--ghost btn--sm" onClick={() => copy(result.config_toml)}>
+                      <Copy size={13} /> Copy
+                    </button>
+                  </div>
+                </div>
+              </details>
+              <p className="text-secondary" style={{ fontSize: 12, margin: 0 }}>
+                Save the config, then run the command. The comb will appear in My Hive automatically.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          {result ? (
+            <>
+              <button className="btn btn--ghost btn--sm" onClick={() => setResult(null)}>← Back</button>
+              <button className="btn btn--primary" onClick={() => { onAdded(); onClose(); }}>Done</button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn--ghost btn--sm" onClick={onClose}>Cancel</button>
+              <button className="btn btn--primary" onClick={generate} disabled={generating || !name.trim()}>
+                {generating ? <span className="spinner spinner--sm" /> : <Terminal size={14} />}
+                Generate command
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export default function HiveView({ onGoToInstall }: HiveViewProps) {
+// ─── HiveView ─────────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface HiveViewProps {
+  onGoToInstall?: () => void; // kept for compat but no longer used
+}
+
+export default function HiveView({ }: HiveViewProps) {
   const [nodes, setNodes] = useState<CombNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -177,9 +280,9 @@ export default function HiveView({ onGoToInstall }: HiveViewProps) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh
+            <RefreshCw size={14} /> Refresh
           </button>
-          <button className="btn btn--primary btn--sm" onClick={onGoToInstall}>
+          <button className="btn btn--primary btn--sm" onClick={() => setShowAddModal(true)}>
             <PlusCircle size={14} /> Add Comb
           </button>
         </div>
@@ -195,7 +298,7 @@ export default function HiveView({ onGoToInstall }: HiveViewProps) {
         <div className="hive-view-empty">
           <Server size={32} style={{ color: 'var(--color-text-secondary)', marginBottom: 12 }} />
           <p>No combs connected yet.</p>
-          <button className="btn btn--primary" onClick={onGoToInstall}>
+          <button className="btn btn--primary" onClick={() => setShowAddModal(true)}>
             <PlusCircle size={15} /> Add your first comb
           </button>
         </div>
@@ -205,6 +308,10 @@ export default function HiveView({ onGoToInstall }: HiveViewProps) {
             {nodes.map(n => <NodeCard key={n.node_id} node={n} />)}
           </div>
         </div>
+      )}
+
+      {showAddModal && (
+        <AddCombModal onClose={() => setShowAddModal(false)} onAdded={load} />
       )}
     </div>
   );
