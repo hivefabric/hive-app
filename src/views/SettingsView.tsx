@@ -90,7 +90,7 @@ function QueenTab() {
         if (!selectedModel) { setError('Select a model'); setSaving(false); return; }
         await setQueenConfig({
           queen_type: 'local',
-          queen_urn: 'oasf://hive/queen/v1',
+          queen_urn: 'oasf://hive/queen/default/v1',
           queen_model: selectedModel.ollama_name,
         });
       } else {
