@@ -35,7 +35,7 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
     <aside className="app-sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">🐝</span>
+          <img src="/bee.svg" width={24} height={24} alt="HiveFabric" className="sidebar-logo-icon" />
           <div>
             <div className="sidebar-logo-text">HiveFabric</div>
             <div className="sidebar-logo-sub">Distributed AI</div>
