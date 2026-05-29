@@ -23,6 +23,7 @@ export interface ChatSession {
   messages: ChatMessage[];
   created_at: number;
   updated_at: number;
+  sync_status?: 'local' | 'synced' | 'error';
 }
 
 export interface RunSubagentRequest {

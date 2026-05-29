@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Lock, Plus, X } from 'lucide-react';
 import { marked } from 'marked';
-import { chat, getQueenPrefs } from '../api';
-import { loadSessions, saveSession, deleteSession, createSession } from '../chat-storage';
+import { chat, getQueenPrefs, listChats, getChat, createChat } from '../api';
+import { loadSessions, saveSession, deleteSession, createSession, syncAppendMessage, syncRenameSession } from '../chat-storage';
 import type { ChatMessage, ChatSession, UserPreferences } from '../types';
 
 // Configure marked for safe rendering
@@ -153,6 +153,43 @@ export default function ChatView() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // On mount: fetch server sessions and merge with local
+  useEffect(() => {
+    listChats()
+      .then(async (serverSessions) => {
+        const local = loadSessions();
+        const localIds = new Set(local.map((s) => s.id));
+        const serverIds = new Set(serverSessions.map((s) => s.id));
+
+        // Sessions on server but not local: fetch messages and add locally
+        const toFetch = serverSessions.filter((s) => !localIds.has(s.id));
+        const fetched = await Promise.all(
+          toFetch.map((s) =>
+            getChat(s.id).catch(() => s), // fall back to session without messages
+          ),
+        );
+
+        // Mark local-only sessions as 'local', server sessions as 'synced'
+        const updatedLocal = local.map((s) =>
+          serverIds.has(s.id) ? { ...s, sync_status: 'synced' as const } : s,
+        );
+
+        const merged = [...updatedLocal];
+        for (const s of fetched) {
+          if (!localIds.has(s.id)) {
+            saveSession(s);
+            merged.push(s);
+          }
+        }
+
+        setSessions(merged);
+      })
+      .catch(() => {
+        // Network error or 401 — silently fall back to localStorage only
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Ensure the active session always exists in state
   useEffect(() => {
     setSessions((prev) => {
@@ -196,6 +233,8 @@ export default function ChatView() {
   function handleNew() {
     const fresh = createSession();
     saveSession(fresh);
+    // Fire-and-forget: create on server
+    createChat(fresh.title).catch(() => {});
     setSessions((prev) => [fresh, ...prev]);
     setActiveId(fresh.id);
     setInput('');
@@ -234,6 +273,8 @@ export default function ChatView() {
       saveSession(updated);
       return prev.map((s) => (s.id === id ? updated : s));
     });
+    // Fire-and-forget sync to server
+    syncRenameSession(id, title);
   }
 
   async function handleSend() {
@@ -273,6 +314,8 @@ export default function ChatView() {
     };
 
     updateSession(sessionWithUser);
+    // Fire-and-forget: sync user message to server
+    syncAppendMessage(sessionWithUser.id, { role: 'user', content: trimmed });
     setInput('');
     setSending(true);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -297,6 +340,8 @@ export default function ChatView() {
         updated_at: Date.now(),
       };
       updateSession(sessionDone);
+      // Fire-and-forget: sync assistant message to server
+      syncAppendMessage(sessionDone.id, { role: 'assistant', content: result, status: 'succeeded' });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Request failed';
       setSessions((prev) => {
@@ -314,6 +359,8 @@ export default function ChatView() {
         saveSession(updated);
         return prev.map((x) => (x.id === activeId ? updated : x));
       });
+      // Fire-and-forget: sync failed assistant message to server
+      syncAppendMessage(activeId, { role: 'assistant', content: `Error: ${errMsg}`, status: 'failed' });
     } finally {
       setSending(false);
     }

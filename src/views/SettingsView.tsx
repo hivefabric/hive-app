@@ -272,9 +272,20 @@ function QueenTab() {
 
         <button className="btn btn--primary" style={{ alignSelf: 'flex-start' }} onClick={save}
           disabled={saving || (queenType === 'local' && !selectedModel)}>
-          {saving ? <span className="spinner spinner--sm" /> : saved ? <Check size={14} /> : null}
-          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save queen'}
+          {saving ? <span className="spinner spinner--sm" /> : null}
+          {saving ? 'Saving…' : 'Save queen'}
         </button>
+
+        {saved && queenType === 'local' && (
+          <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 8, padding: '8px 12px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)' }}>
+            ✓ Queen saved. Restart your comb agent to apply the new model and regenerate cells.
+          </div>
+        )}
+        {saved && queenType === 'cloud' && (
+          <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 8, padding: '8px 12px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)' }}>
+            ✓ Cloud queen saved.
+          </div>
+        )}
       </div>
     </div>
   );

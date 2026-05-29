@@ -10,6 +10,7 @@ import type {
   EnrolCombRequest,
   EnrolCombResponse,
   ModelEntry,
+  ChatSession,
 } from './types';
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8090';
@@ -268,4 +269,88 @@ export async function getModels(): Promise<ModelEntry[]> {
     const d = await res.json();
     return d.models ?? [];
   } catch { return []; }
+}
+
+// ─── Chat sessions (server-side) ─────────────────────────────────────────────
+
+interface ServerChatSession {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages?: Array<{
+    id: string;
+    role: string;
+    content: string;
+    status?: string;
+    created_at: string;
+  }>;
+}
+
+function mapServerSession(s: ServerChatSession): ChatSession {
+  return {
+    id: s.id,
+    title: s.title,
+    created_at: new Date(s.created_at).getTime(),
+    updated_at: new Date(s.updated_at).getTime(),
+    messages: (s.messages ?? []).map((m) => ({
+      id: m.id,
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+      timestamp: new Date(m.created_at).getTime(),
+      status: m.status as ChatSession['messages'][number]['status'],
+    })),
+    sync_status: 'synced',
+  };
+}
+
+export async function listChats(): Promise<ChatSession[]> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats`, { headers: authHeaders() });
+  const data = await handleResponse<ServerChatSession[]>(res);
+  return data.map(mapServerSession);
+}
+
+export async function createChat(title?: string): Promise<ChatSession> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ title: title ?? 'New chat' }),
+  });
+  const data = await handleResponse<ServerChatSession>(res);
+  return mapServerSession(data);
+}
+
+export async function getChat(id: string): Promise<ChatSession> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats/${id}`, { headers: authHeaders() });
+  const data = await handleResponse<ServerChatSession>(res);
+  return mapServerSession(data);
+}
+
+export async function updateChatTitle(id: string, title: string): Promise<void> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function deleteChat(id: string): Promise<void> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function appendChatMessage(
+  sessionId: string,
+  msg: { role: string; content: string; status?: string },
+): Promise<void> {
+  const res = await fetch(`${GATEWAY}/v1/me/chats/${sessionId}/messages`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(msg),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
