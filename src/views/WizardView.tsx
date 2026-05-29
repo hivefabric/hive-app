@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, ChevronRight, ChevronLeft, Server, Cloud, Terminal, Copy, RefreshCw, X } from 'lucide-react';
+import { CheckCircle, ChevronRight, ChevronLeft, Server, Cloud, Terminal, RefreshCw, X } from 'lucide-react';
 import { getNodes, enrollComb, createLLMProvider, setQueenConfig, invalidateQueenCache } from '../api';
 import type { CombNode } from '../types';
+import { CopyBlock } from '../shared/CopyBlock';
 
 interface WizardProps {
   onDone: () => void;
@@ -21,25 +22,6 @@ function shortUrn(urn: string): string {
 function modelFromUrn(urn: string): string | null {
   const m = urn.match(/oasf:\/\/commons\/inference\/([^/]+)\/v\d+/);
   return m ? m[1].replace(/-/g, ':') : null;
-}
-
-function CopyBlock({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-  return (
-    <div className="copy-block">
-      <pre className="copy-block__code">{text}</pre>
-      <button className="copy-block__btn btn btn--ghost btn--sm" onClick={copy}>
-        {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-        {copied ? 'Copied' : 'Copy'}
-      </button>
-    </div>
-  );
 }
 
 // ─── Step 1: Add Comb ─────────────────────────────────────────────────────────
