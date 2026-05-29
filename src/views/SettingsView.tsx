@@ -123,154 +123,221 @@ function QueenTab() {
     </div>
   );
 
+  const hasQueenHardware = combs.some(c => c.queen_capable);
+
   return (
     <div className="settings-section">
-      {/* Current status */}
+
+      {/* ── Page-level explanation ── */}
+      <div className="settings-block">
+        <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>Configure Your Queen</h2>
+        <p className="text-secondary" style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+          The queen is your AI orchestrator. When you send a message, the queen thinks about it,
+          breaks it into steps, and assigns each step to the right worker on your combs.
+        </p>
+        <p className="text-secondary" style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+          The queen model handles <strong>reasoning and planning</strong> — it needs to support tool
+          calling. Your inference workers run separately and are configured automatically from your
+          hardware.
+        </p>
+      </div>
+
+      {/* ── Current queen status card ── */}
       {prefs?.queen_type && (
         <div className="settings-block">
-          <h3 className="settings-block__title">Current queen</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-            <span style={{ fontSize: 20 }}>{prefs.queen_type === 'local' ? '🖥️' : '☁️'}</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>
-                {prefs.queen_type === 'local' ? 'Local comb' : 'Cloud model'}
-              </div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>
-                {prefs.queen_model ?? 'model not set'}
-              </div>
+          <div style={{
+            padding: '12px 16px',
+            background: 'var(--color-surface-variant)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              👑 Queen: {prefs.queen_model ?? 'model not set'}
+            </div>
+            <div className="text-secondary" style={{ fontSize: 12 }}>
+              {prefs.queen_type === 'local' ? 'Running on your comb' : 'Cloud provider'}
+              {' · '}Handles reasoning and task planning
+            </div>
+            <div className="text-secondary" style={{ fontSize: 12 }}>
+              Workers: configured automatically · check My Hive for details
             </div>
           </div>
         </div>
       )}
 
       <div className="settings-block">
-        <h3 className="settings-block__title">{prefs?.queen_type ? 'Change queen' : 'Configure queen'}</h3>
-        <p className="text-secondary" style={{ margin: '0 0 14px', fontSize: 14 }}>
-          The queen decomposes your requests and routes tasks to your combs.
-        </p>
+        <h3 className="settings-block__title">{prefs?.queen_type ? 'Change queen' : 'Set up your queen'}</h3>
 
-        {/* Type toggle — local queen gated on queen-capable hardware */}
-        {(() => {
-          const hasQueenHardware = combs.some(c => c.queen_capable);
-          return (
-            <div className="wizard-queen-options" style={{ marginBottom: 16 }}>
-              <button
-                className={`wizard-queen-option${queenType === 'local' ? ' wizard-queen-option--active' : ''}`}
-                onClick={() => hasQueenHardware && setQueenType('local')}
-                style={{ gap: 10, padding: '10px 14px', opacity: hasQueenHardware ? 1 : 0.4, cursor: hasQueenHardware ? 'pointer' : 'default' }}
-                title={hasQueenHardware ? undefined : 'Requires a comb with ≥8 cores and ≥8 GB RAM'}
-              >
-                <Server size={16} />
-                <div style={{ flex: 1 }}>
-                  <div className="wizard-queen-option__title">
-                    Local comb
-                    {!hasQueenHardware && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>Hardware required</span>}
-                  </div>
-                  <div className="wizard-queen-option__desc text-secondary">
-                    {hasQueenHardware ? 'Private · no API cost' : 'Needs ≥8 cores and ≥8 GB RAM'}
-                  </div>
-                </div>
-              </button>
-              <button
-                className={`wizard-queen-option${queenType === 'cloud' ? ' wizard-queen-option--active' : ''}`}
-                onClick={() => setQueenType('cloud')}
-                style={{ gap: 10, padding: '10px 14px' }}
-              >
-                <Cloud size={16} />
-                <div style={{ flex: 1 }}>
-                  <div className="wizard-queen-option__title">Cloud model</div>
-                  <div className="wizard-queen-option__desc text-secondary">Anthropic, OpenAI, or compatible</div>
-                </div>
-              </button>
+        {/* Type toggle */}
+        <div className="wizard-queen-options" style={{ marginBottom: 4 }}>
+          <button
+            className={`wizard-queen-option${queenType === 'local' ? ' wizard-queen-option--active' : ''}`}
+            onClick={() => hasQueenHardware && setQueenType('local')}
+            style={{ gap: 10, padding: '10px 14px', opacity: hasQueenHardware ? 1 : 0.4, cursor: hasQueenHardware ? 'pointer' : 'default' }}
+            title={hasQueenHardware ? undefined : 'Requires a comb with ≥8 cores and ≥8 GB RAM'}
+          >
+            <Server size={16} />
+            <div style={{ flex: 1 }}>
+              <div className="wizard-queen-option__title">
+                Local queen
+                {!hasQueenHardware && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>Hardware required</span>}
+              </div>
+              <div className="wizard-queen-option__desc text-secondary">
+                {hasQueenHardware ? 'Private · no API cost' : 'Needs ≥8 cores and ≥8 GB RAM'}
+              </div>
             </div>
-          );
-        })()}
+          </button>
+          <button
+            className={`wizard-queen-option${queenType === 'cloud' ? ' wizard-queen-option--active' : ''}`}
+            onClick={() => setQueenType('cloud')}
+            style={{ gap: 10, padding: '10px 14px' }}
+          >
+            <Cloud size={16} />
+            <div style={{ flex: 1 }}>
+              <div className="wizard-queen-option__title">Cloud queen</div>
+              <div className="wizard-queen-option__desc text-secondary">Anthropic, OpenAI, or compatible</div>
+            </div>
+          </button>
+        </div>
 
-        {/* Local: model catalog picker */}
+        {/* ── Local queen: model picker ── */}
         {queenType === 'local' && (
-          catalogLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12 }}>
-              <span className="spinner spinner--sm" />
-              <span className="text-secondary">Loading model catalog…</span>
+          <>
+            <div style={{ marginTop: 12, marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 2 }}>
+                Queen model (for reasoning + planning)
+              </div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>
+                Choose a model that supports tool calling. Larger models orchestrate better.
+              </div>
             </div>
-          ) : catalogModels.length === 0 ? (
-            <div className="settings-empty">
-              No queen-eligible models found. Check that honeycomb is running.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-              {catalogModels.map(m => {
-                const sel = selectedModel?.id === m.id;
-                const fits = availableGb != null ? m.min_ram_gb <= availableGb : true;
-                return (
-                  <button
-                    key={m.id}
-                    className={`wizard-queen-option${sel ? ' wizard-queen-option--active' : ''}`}
-                    onClick={() => setSelectedModel(m)}
-                    style={{ gap: 10, padding: '10px 14px', opacity: fits ? 1 : 0.55 }}
-                  >
-                    <div style={{ flex: 1, textAlign: 'left' }}>
-                      <div className="wizard-queen-option__title">{m.display_name}</div>
-                      <div className="wizard-queen-option__desc text-secondary">
-                        {m.size_gb}GB · {m.tier} · min {m.min_ram_gb}GB RAM
-                        {m.notes ? ` · ${m.notes}` : ''}
+
+            {catalogLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12 }}>
+                <span className="spinner spinner--sm" />
+                <span className="text-secondary">Loading model catalog…</span>
+              </div>
+            ) : catalogModels.length === 0 ? (
+              <div className="settings-empty">
+                No queen-eligible models found. Check that honeycomb is running.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                {catalogModels.map(m => {
+                  const sel = selectedModel?.id === m.id;
+                  const fits = availableGb != null ? m.min_ram_gb <= availableGb : true;
+                  // Build tier label
+                  const tierLabel = m.tier
+                    ? (m.tier.toLowerCase().includes('large') ? 'Large · queen-grade'
+                      : m.tier.toLowerCase().includes('medium') ? 'Medium · queen-capable'
+                      : m.tier)
+                    : '';
+                  return (
+                    <button
+                      key={m.id}
+                      className={`wizard-queen-option${sel ? ' wizard-queen-option--active' : ''}`}
+                      onClick={() => setSelectedModel(m)}
+                      style={{ gap: 10, padding: '10px 14px', opacity: fits ? 1 : 0.55 }}
+                    >
+                      <div style={{ flex: 1, textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span className="wizard-queen-option__title">{m.display_name}</span>
+                          {m.supports_tools && (
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(11,87,208,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(11,87,208,0.2)' }}>
+                              ✓ Tool calling
+                            </span>
+                          )}
+                          {m.supports_thinking && (
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(52,168,83,0.1)', color: '#1E8E3E', border: '1px solid rgba(52,168,83,0.25)' }}>
+                              ✓ Reasoning
+                            </span>
+                          )}
+                        </div>
+                        <div className="wizard-queen-option__desc text-secondary">
+                          {m.size_gb}GB · {tierLabel || m.tier} · min {m.min_ram_gb}GB RAM
+                          {m.notes ? ` · ${m.notes}` : ''}
+                        </div>
                       </div>
-                    </div>
-                    {sel && <Check size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
-                  </button>
-                );
-              })}
+                      {sel && <Check size={15} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
 
-              {/* Capacity preview */}
-              {selectedModel && (
+                {/* Capacity preview */}
+                {selectedModel && (
+                  <div style={{
+                    padding: '8px 12px',
+                    background: 'var(--color-surface-variant)',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: 'var(--color-text-secondary)',
+                    lineHeight: 1.5,
+                  }}>
+                    {workerSlots != null
+                      ? `Leaves ~${workerSlots} worker slot${workerSlots !== 1 ? 's' : ''} for inference tasks`
+                      : `Selected: ${selectedModel.display_name}`}
+                  </div>
+                )}
+
+                {/* Callout: clarifies this only sets the queen's model, not workers */}
                 <div style={{
-                  padding: '8px 12px',
-                  background: 'var(--color-surface-variant)',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: 'var(--color-text-secondary)',
-                  lineHeight: 1.5,
+                  padding: '10px 14px',
+                  background: 'rgba(11,87,208,0.06)',
+                  borderRadius: 8,
+                  border: '1px solid rgba(11,87,208,0.2)',
+                  fontSize: 13,
                 }}>
-                  {workerSlots != null
-                    ? `Leaves ~${workerSlots} worker slot${workerSlots !== 1 ? 's' : ''} for other tasks`
-                    : `Selected: ${selectedModel.display_name}`}
+                  <strong>This only configures the queen's thinking model.</strong><br />
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    Your inference workers (the models that execute tasks) are configured automatically
+                    based on your hardware. Check <b>My Hive &rarr; click a comb &rarr; cells</b> to see them.
+                  </span>
                 </div>
-              )}
-            </div>
-          )
-        )}
-
-        {/* Cloud form */}
-        {queenType === 'cloud' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Provider</label>
-                <select className="input" value={provider} onChange={e => {
-                  const p = e.target.value as typeof provider;
-                  setProvider(p); setCloudModel(CLOUD_DEFAULTS[p] ?? '');
-                }}>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="openai_compat">OpenAI-compatible</option>
-                </select>
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Model</label>
-                <input className="input" value={cloudModel} onChange={e => setCloudModel(e.target.value)} placeholder={CLOUD_DEFAULTS[provider]} />
-              </div>
-            </div>
-            {provider === 'openai_compat' && (
-              <div className="form-group">
-                <label className="form-label">Base URL</label>
-                <input className="input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.together.ai/v1" />
               </div>
             )}
-            <div className="form-group">
-              <label className="form-label">API Key</label>
-              <input className="input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." />
+          </>
+        )}
+
+        {/* ── Cloud queen form ── */}
+        {queenType === 'cloud' && (
+          <>
+            <p className="text-secondary" style={{ margin: '4px 0 10px', fontSize: 13, lineHeight: 1.5 }}>
+              Using a cloud model as your queen gives better orchestration quality but sends your
+              queries to an external provider.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+              <div className="form-row">
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Provider</label>
+                  <select className="input" value={provider} onChange={e => {
+                    const p = e.target.value as typeof provider;
+                    setProvider(p); setCloudModel(CLOUD_DEFAULTS[p] ?? '');
+                  }}>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="openai_compat">OpenAI-compatible</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Model</label>
+                  <input className="input" value={cloudModel} onChange={e => setCloudModel(e.target.value)} placeholder={CLOUD_DEFAULTS[provider]} />
+                </div>
+              </div>
+              {provider === 'openai_compat' && (
+                <div className="form-group">
+                  <label className="form-label">Base URL</label>
+                  <input className="input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.together.ai/v1" />
+                </div>
+              )}
+              <div className="form-group">
+                <label className="form-label">API Key</label>
+                <input className="input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." />
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {error && <div className="error-banner">{error}</div>}

@@ -62,6 +62,7 @@ export interface ModelEntry {
   min_cores: number;
   queen_eligible: boolean;
   supports_tools: boolean;
+  supports_thinking?: boolean;
   tier: string;
   notes: string;
 }
