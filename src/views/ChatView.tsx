@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Lock, Plus, X } from 'lucide-react';
+import { marked } from 'marked';
 import { chat, getQueenPrefs } from '../api';
 import { loadSessions, saveSession, deleteSession, createSession } from '../chat-storage';
 import type { ChatMessage, ChatSession, UserPreferences } from '../types';
+
+// Configure marked for safe rendering
+marked.setOptions({ breaks: true, gfm: true });
 
 function generateId() {
   return Math.random().toString(36).slice(2);
@@ -48,15 +52,50 @@ function PrivacyIndicator() {
   );
 }
 
+function SessionTitle({ session, onRename }: { session: ChatSession; onRename: (title: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(session.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="chat-session-title-input"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); if (draft.trim()) onRename(draft.trim()); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.currentTarget.blur(); }
+          if (e.key === 'Escape') { setDraft(session.title); setEditing(false); }
+        }}
+        onClick={e => e.stopPropagation()}
+      />
+    );
+  }
+  return (
+    <div
+      className="chat-session-title"
+      onDoubleClick={e => { e.stopPropagation(); setEditing(true); }}
+      title="Double-click to rename"
+    >{session.title}</div>
+  );
+}
+
 interface SessionsPanelProps {
   sessions: ChatSession[];
   activeId: string;
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
 }
 
-function SessionsPanel({ sessions, activeId, onSelect, onNew, onDelete }: SessionsPanelProps) {
+function SessionsPanel({ sessions, activeId, onSelect, onNew, onDelete, onRename }: SessionsPanelProps) {
   const sorted = [...sessions].sort((a, b) => b.updated_at - a.updated_at);
 
   return (
@@ -80,7 +119,7 @@ function SessionsPanel({ sessions, activeId, onSelect, onNew, onDelete }: Sessio
               onClick={() => onSelect(s.id)}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="chat-session-title">{s.title}</div>
+                <SessionTitle session={s} onRename={(title) => onRename(s.id, title)} />
                 <div className="chat-session-date">{formatDate(s.updated_at)}</div>
               </div>
               <button
@@ -128,6 +167,7 @@ export default function ChatView() {
 
   const activeSession = sessions.find((s) => s.id === activeId) ?? null;
   const messages = activeSession?.messages ?? [];
+  const queenConfigured = !!(localStorage.getItem('hf_queen_type'));
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -183,6 +223,16 @@ export default function ChatView() {
         }
       }
       return next;
+    });
+  }
+
+  function handleRename(id: string, title: string) {
+    setSessions((prev) => {
+      const session = prev.find((s) => s.id === id);
+      if (!session) return prev;
+      const updated: ChatSession = { ...session, title };
+      saveSession(updated);
+      return prev.map((s) => (s.id === id ? updated : s));
     });
   }
 
@@ -284,6 +334,7 @@ export default function ChatView() {
         onSelect={handleSelect}
         onNew={handleNew}
         onDelete={handleDelete}
+        onRename={handleRename}
       />
 
       <div className="chat-main">
@@ -295,6 +346,11 @@ export default function ChatView() {
               <p className="text-secondary">
                 Your queen will break down requests and route tasks to your combs automatically.
               </p>
+              {!queenConfigured && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(249,171,0,0.1)', border: '1px solid #E37400', borderRadius: 8, fontSize: 13 }}>
+                  Queen not configured. Go to <a href="#/settings">Settings → Queen</a> to set it up.
+                </div>
+              )}
             </div>
           ) : (
             messages.map((msg) => (
@@ -311,10 +367,15 @@ export default function ChatView() {
                       <span className="spinner spinner--sm" />
                       {msg.status === 'queued' ? 'Queued…' : 'Running on hive…'}
                     </div>
+                  ) : msg.role === 'assistant' ? (
+                    <div
+                      className="message-bubble message-bubble--ai"
+                      style={msg.status === 'failed' ? { borderColor: 'var(--color-error)', color: 'var(--color-error)' } : undefined}
+                      dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
+                    />
                   ) : (
                     <div
-                      className={`message-bubble${msg.role === 'user' ? ' message-bubble--user' : ' message-bubble--ai'}`}
-                      style={msg.status === 'failed' ? { borderColor: 'var(--color-error)', color: 'var(--color-error)' } : undefined}
+                      className="message-bubble message-bubble--user"
                     >
                       {msg.content}
                     </div>
