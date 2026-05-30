@@ -158,17 +158,20 @@ export async function setQueenConfig(config: {
 
 /**
  * Route a chat message via the configured queen.
- * Local queen → run_subagent with the queen URN (gateway injects queen_llm).
- * Cloud queen → /v1/orchestrate with the stored provider.
- * No queen configured → auto-route (no urn, gateway picks default).
+ * Always fetches fresh preferences so queen model changes take effect immediately
+ * — the cache is intentionally bypassed here to avoid routing through a stale
+ * provider after the queen model is changed in Settings.
  */
 export async function chat(prompt: string): Promise<string> {
+  // Always invalidate before chat to pick up any queen model changes.
+  // The cache serves display purposes (privacy indicator); routing must be fresh.
+  invalidateQueenCache();
   const prefs = await getQueenPrefs();
   if (prefs.queen_type === 'cloud' && prefs.queen_llm_provider_id) {
     return orchestrate(prompt, prefs.queen_llm_provider_id);
   }
-  // Local queen or fallback
-  const urn = prefs.queen_urn || localStorage.getItem('hf_queen_urn') || undefined;
+  // Local queen — use the server-side queen_urn (guaranteed current)
+  const urn = prefs.queen_urn || undefined;
   return runSubagent(prompt, urn);
 }
 
