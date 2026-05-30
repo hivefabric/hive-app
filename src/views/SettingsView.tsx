@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
   Server, Copy, Check,
-  Cloud, Trash2,
+  Cloud, Trash2, Plus, X,
 } from 'lucide-react';
 import {
   getNodes, getPreferences, updatePreferences,
   getLLMProviders, createLLMProvider, setQueenConfig, invalidateQueenCache, getModels,
+  getUsage, listSchedules, createSchedule, deleteSchedule, toggleSchedule,
 } from '../api';
-import type { CombNode, UserPreferences, ModelEntry } from '../types';
+import type { CombNode, UserPreferences, ModelEntry, UsageSummary, Schedule } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface SettingsProps {}
 
-type Tab = 'queen' | 'privacy' | 'apikey';
+type Tab = 'queen' | 'privacy' | 'apikey' | 'schedules';
 
 // ─── Queen tab ────────────────────────────────────────────────────────────────
 
@@ -555,6 +556,47 @@ function PrivacyTab() {
   );
 }
 
+// ─── Credits card ─────────────────────────────────────────────────────────────
+
+function CreditsCard() {
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  useEffect(() => { getUsage().then(setUsage).catch(() => {}); }, []);
+
+  if (!usage) return null;
+  return (
+    <div className="settings-block">
+      <h3 className="settings-block__title">Credits</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 14px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+        <div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: usage.credits_remaining > 100 ? '#1E8E3E' : '#E37400' }}>
+            {usage.credits_remaining.toLocaleString()}
+          </div>
+          <div className="text-secondary" style={{ fontSize: 12 }}>credits remaining</div>
+        </div>
+        {usage.credits_used_today != null && (
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>{usage.credits_used_today}</div>
+            <div className="text-secondary" style={{ fontSize: 12 }}>used today</div>
+          </div>
+        )}
+      </div>
+      {usage.recent_events && usage.recent_events.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div className="form-label" style={{ marginBottom: 6 }}>Recent activity</div>
+          {usage.recent_events.slice(0, 5).map((e, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span className="text-secondary">{e.description ?? e.kind}</span>
+              <span style={{ color: e.kind === 'credit' ? '#1E8E3E' : e.kind === 'refund' ? '#E37400' : 'var(--color-text)', fontWeight: 500 }}>
+                {e.kind === 'debit' ? '-' : '+'}{e.amount}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── API Key tab ──────────────────────────────────────────────────────────────
 
 function ApiKeyTab() {
@@ -579,6 +621,7 @@ function ApiKeyTab() {
 
   return (
     <div className="settings-section">
+      <CreditsCard />
       <div className="settings-block">
         <h3 className="settings-block__title">API Key</h3>
         <p className="text-secondary" style={{ margin: '0 0 16px', fontSize: 14 }}>
@@ -610,12 +653,182 @@ function ApiKeyTab() {
   );
 }
 
+// ─── Schedules tab ────────────────────────────────────────────────────────────
+
+function humanCron(cron: string): string {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return cron;
+  const [min, hour, dom, , dow] = parts;
+  const days: Record<string, string> = {
+    '0': 'Sun', '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu', '5': 'Fri', '6': 'Sat',
+  };
+  if (dom === '*' && dow === '1-5' && min !== '*' && hour !== '*')
+    return `Weekdays at ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  if (dom === '*' && dow === '*' && min !== '*' && hour !== '*')
+    return `Daily at ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  if (dom === '*' && dow !== '*' && min !== '*' && hour !== '*') {
+    const dayLabel = days[dow] ?? dow;
+    return `${dayLabel} at ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  }
+  if (min.startsWith('*/') && hour === '*' && dom === '*' && dow === '*')
+    return `Every ${min.slice(2)} minutes`;
+  if (min === '*' && hour.startsWith('*/'))
+    return `Every ${hour.slice(2)} hours`;
+  return cron;
+}
+
+function formatRunTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function SchedulesTab() {
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  // New schedule form state
+  const [newTitle, setNewTitle] = useState('');
+  const [newCron, setNewCron] = useState('');
+  const [newPrompt, setNewPrompt] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  function load() {
+    setLoading(true);
+    listSchedules()
+      .then(setSchedules)
+      .catch(() => setSchedules([]))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleCreate() {
+    if (!newTitle.trim() || !newCron.trim() || !newPrompt.trim()) {
+      setFormError('Title, cron expression, and prompt are required.');
+      return;
+    }
+    setCreating(true);
+    setFormError('');
+    try {
+      await createSchedule({ title: newTitle.trim(), cron: newCron.trim(), prompt: newPrompt.trim() });
+      setNewTitle(''); setNewCron(''); setNewPrompt('');
+      setShowForm(false);
+      load();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to create schedule');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await deleteSchedule(id).catch(() => {});
+    setSchedules((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  async function handleToggle(id: string, enabled: boolean) {
+    try {
+      const updated = await toggleSchedule(id, enabled);
+      setSchedules((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div className="settings-section">
+      <div className="settings-block">
+        <div className="settings-block__header">
+          <h3 className="settings-block__title">Scheduled Tasks</h3>
+          <button className="btn btn--secondary btn--sm" onClick={() => { setShowForm((v) => !v); setFormError(''); }}>
+            <Plus size={13} />
+            New schedule
+          </button>
+        </div>
+
+        {showForm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px', background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+            <div className="form-group">
+              <label className="form-label">Title</label>
+              <input className="input" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Morning briefing" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cron expression</label>
+              <input className="input" value={newCron} onChange={(e) => setNewCron(e.target.value)} placeholder="0 9 * * 1-5" />
+              <span className="form-hint">e.g. <code>0 9 * * 1-5</code> = weekdays at 9am · <code>0 8 * * *</code> = daily at 8am</span>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Prompt</label>
+              <textarea
+                className="input input--textarea"
+                value={newPrompt}
+                onChange={(e) => setNewPrompt(e.target.value)}
+                placeholder="Summarise the latest news and send me a briefing…"
+                rows={3}
+              />
+            </div>
+            {formError && <div className="error-banner">{formError}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn--primary btn--sm" onClick={handleCreate} disabled={creating}>
+                {creating ? <span className="spinner spinner--sm" /> : <Check size={13} />}
+                {creating ? 'Creating…' : 'Create'}
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => { setShowForm(false); setFormError(''); }}>
+                <X size={13} /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-secondary" style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="spinner spinner--sm" /> Loading…
+          </div>
+        ) : schedules.length === 0 ? (
+          <div className="settings-empty">
+            No scheduled tasks. Create one to run prompts automatically.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {schedules.map((s) => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{s.title}</div>
+                  <div className="text-secondary" style={{ fontSize: 12 }}>
+                    {humanCron(s.cron)}
+                    {s.next_run_at && <> · Next: {formatRunTime(s.next_run_at)}</>}
+                    {s.last_run_at && <> · Last: {formatRunTime(s.last_run_at)}</>}
+                  </div>
+                  <div className="text-secondary" style={{ fontSize: 12, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>
+                    {s.task_payload.prompt}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <label className="toggle" title={s.enabled ? 'Disable' : 'Enable'}>
+                    <input type="checkbox" checked={s.enabled} onChange={(e) => handleToggle(s.id, e.target.checked)} />
+                    <span className="toggle__slider" />
+                  </label>
+                  <button className="btn btn--ghost btn--sm btn--icon" onClick={() => handleDelete(s.id)} title="Delete schedule">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'queen',   label: 'Queen' },
-  { id: 'privacy', label: 'Privacy' },
-  { id: 'apikey',  label: 'API Key' },
+  { id: 'queen',     label: 'Queen' },
+  { id: 'privacy',   label: 'Privacy' },
+  { id: 'apikey',    label: 'API Key' },
+  { id: 'schedules', label: '⏰ Schedules' },
 ];
 
 export default function SettingsView({ }: SettingsProps) {
@@ -635,9 +848,10 @@ export default function SettingsView({ }: SettingsProps) {
       </div>
       <div className="settings-body">
 
-        {tab === 'queen'  && <QueenTab />}
-        {tab === 'privacy' && <PrivacyTab />}
-        {tab === 'apikey' && <ApiKeyTab />}
+        {tab === 'queen'     && <QueenTab />}
+        {tab === 'privacy'   && <PrivacyTab />}
+        {tab === 'apikey'    && <ApiKeyTab />}
+        {tab === 'schedules' && <SchedulesTab />}
       </div>
     </div>
   );

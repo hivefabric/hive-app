@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Lock, Plus, X } from 'lucide-react';
+import { Send, Lock, Plus, X, Clock } from 'lucide-react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { chat, getQueenPrefs, invalidateQueenCache, listChats, getChat, createChat } from '../api';
+import { chat, getQueenPrefs, invalidateQueenCache, listChats, getChat, createChat, createSchedule } from '../api';
 import { loadSessions, saveSession, deleteSession, createSession, syncAppendMessage, syncRenameSession } from '../chat-storage';
 import type { ChatMessage, ChatSession, UserPreferences } from '../types';
 
@@ -153,6 +153,79 @@ function SessionsPanel({ sessions, activeId, onSelect, onNew, onDelete, onRename
   );
 }
 
+// ─── Quick-schedule modal ─────────────────────────────────────────────────────
+
+interface QuickScheduleModalProps {
+  initialPrompt: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+function QuickScheduleModal({ initialPrompt, onClose, onCreated }: QuickScheduleModalProps) {
+  const [title, setTitle] = useState('Scheduled task');
+  const [cron, setCron] = useState('0 9 * * 1-5');
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSave() {
+    if (!title.trim() || !cron.trim() || !prompt.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await createSchedule({ title: title.trim(), cron: cron.trim(), prompt: prompt.trim() });
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create schedule');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-dialog">
+        <div className="modal-header">
+          <span className="modal-title">Schedule this prompt</span>
+          <button className="btn btn--ghost btn--sm btn--icon" onClick={onClose}><X size={15} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Title</label>
+            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="My scheduled task" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Cron expression</label>
+            <input className="input" value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 9 * * 1-5" />
+            <span className="form-hint">e.g. <code>0 9 * * 1-5</code> = weekdays at 9am · <code>0 8 * * *</code> = daily at 8am</span>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Prompt</label>
+            <textarea
+              className="input input--textarea"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+              placeholder="What should the hive do?"
+            />
+          </div>
+          {error && <div className="error-banner">{error}</div>}
+        </div>
+        <div className="modal-footer modal-footer--end">
+          <button className="btn btn--ghost btn--sm" onClick={onClose}>Cancel</button>
+          <button className="btn btn--primary btn--sm" onClick={handleSave} disabled={saving}>
+            {saving ? <span className="spinner spinner--sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} /> : <Clock size={13} />}
+            {saving ? 'Scheduling…' : 'Schedule'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatView() {
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeId, setActiveId] = useState<string>(() => {
@@ -165,6 +238,7 @@ export default function ChatView() {
 
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -390,6 +464,13 @@ export default function ChatView() {
 
   return (
     <div className="chat-layout">
+      {showScheduleModal && (
+        <QuickScheduleModal
+          initialPrompt={input}
+          onClose={() => setShowScheduleModal(false)}
+          onCreated={() => { setShowScheduleModal(false); }}
+        />
+      )}
       <SessionsPanel
         sessions={sessions}
         activeId={activeId}
@@ -463,6 +544,15 @@ export default function ChatView() {
               rows={1}
               disabled={sending}
             />
+            <button
+              className="btn btn--ghost btn--icon"
+              onClick={() => setShowScheduleModal(true)}
+              disabled={sending}
+              title="Schedule this prompt"
+              aria-label="Schedule prompt"
+            >
+              <Clock size={15} />
+            </button>
             <button
               className="btn btn--primary btn--icon"
               onClick={handleSend}

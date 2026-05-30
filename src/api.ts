@@ -11,6 +11,8 @@ import type {
   EnrolCombResponse,
   ModelEntry,
   ChatSession,
+  UsageSummary,
+  Schedule,
 } from './types';
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8090';
@@ -352,4 +354,51 @@ export async function appendChatMessage(
     body: JSON.stringify(msg),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// ─── Usage / Ledger ───────────────────────────────────────────────────────────
+
+export async function getUsage(): Promise<UsageSummary> {
+  const res = await fetch(`${GATEWAY}/v1/me/usage`, { headers: authHeaders() });
+  return handleResponse<UsageSummary>(res);
+}
+
+// ─── Schedules ────────────────────────────────────────────────────────────────
+
+export async function listSchedules(): Promise<Schedule[]> {
+  const res = await fetch(`${GATEWAY}/v1/me/schedules`, { headers: authHeaders() });
+  return handleResponse<Schedule[]>(res);
+}
+
+export async function createSchedule(data: {
+  title: string;
+  cron: string;
+  prompt: string;
+  capability_urn?: string;
+}): Promise<Schedule> {
+  const res = await fetch(`${GATEWAY}/v1/me/schedules`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      ...data,
+      task_payload: { prompt: data.prompt, capability_urn: data.capability_urn },
+    }),
+  });
+  return handleResponse<Schedule>(res);
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  await fetch(`${GATEWAY}/v1/me/schedules/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+}
+
+export async function toggleSchedule(id: string, enabled: boolean): Promise<Schedule> {
+  const res = await fetch(`${GATEWAY}/v1/me/schedules/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ enabled }),
+  });
+  return handleResponse<Schedule>(res);
 }

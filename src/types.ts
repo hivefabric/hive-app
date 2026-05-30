@@ -167,6 +167,32 @@ export interface UserPreferences {
   pool_share_pct?: number;
 }
 
+// ─── Ledger / Usage ──────────────────────────────────────────────────────────
+
+export interface UsageSummary {
+  credits_remaining: number;
+  credits_used_today?: number;
+  recent_events?: Array<{
+    at: string;
+    kind: string;      // "debit" | "credit" | "refund"
+    amount: number;
+    description?: string;
+  }>;
+}
+
+// ─── Schedules ───────────────────────────────────────────────────────────────
+
+export interface Schedule {
+  id: string;
+  title: string;
+  cron: string;
+  task_payload: { prompt: string; capability_urn?: string };
+  enabled: boolean;
+  next_run_at?: string | null;
+  last_run_at?: string | null;
+  created_at: string;
+}
+
 // ─── Comb Enrolment ──────────────────────────────────────────────────────────
 
 export type CombCapabilities = 'llm';
