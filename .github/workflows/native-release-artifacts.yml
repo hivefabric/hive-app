@@ -1,0 +1,208 @@
+name: Native Release Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish GitHub Release assets (requires a native-v* tag ref)"
+        required: false
+        default: "false"
+  push:
+    branches:
+      - main
+    tags:
+      - "native-v*"
+    paths:
+      - "native/**"
+      - ".github/workflows/native-release-artifacts.yml"
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: native-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headless-binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Resolve runtime dependencies
+        working-directory: native
+        run: dart pub get
+      - name: Build headless binary (unix)
+        if: runner.os != 'Windows'
+        working-directory: native
+        run: dart compile exe headless_main.dart -o build/wax-headless
+      - name: Build headless binary (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: native
+        run: dart compile exe headless_main.dart -o build/wax-headless.exe
+      - name: Package binary (unix)
+        if: runner.os != 'Windows'
+        working-directory: native
+        run: |
+          mkdir -p dist
+          tar -C build -czf dist/wax-headless-${{ runner.os }}.tar.gz wax-headless
+      - name: Package binary (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: native
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/wax-headless.exe -DestinationPath dist/wax-headless-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wax-headless-${{ runner.os }}
+          path: native/dist/*
+
+  flutter-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            archive: wax-ui-linux.tar.gz
+            package_cmd: tar -C app/flutter_ui/build/linux/x64/release -czf dist/wax-ui-linux.tar.gz bundle
+            artifact_path: dist/wax-ui-linux.tar.gz
+          - os: windows-latest
+            platform: windows
+            archive: wax-ui-windows.zip
+            package_cmd: Compress-Archive -Path app/flutter_ui/build/windows/x64/runner/Release/* -DestinationPath dist/wax-ui-windows.zip
+            artifact_path: dist/wax-ui-windows.zip
+          - os: macos-latest
+            platform: macos
+            archive: wax-ui-macos.tar.gz
+            package_cmd: tar -C app/flutter_ui/build/macos/Build/Products/Release -czf dist/wax-ui-macos.tar.gz honeycomb_flutter_ui.app
+            artifact_path: dist/wax-ui-macos.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve Flutter dependencies
+        working-directory: native/app/flutter_ui
+        run: flutter pub get
+      - name: Enable desktop target
+        working-directory: native/app/flutter_ui
+        run: flutter config --enable-${{ matrix.platform }}-desktop
+      - name: Build desktop app
+        working-directory: native/app/flutter_ui
+        run: flutter build ${{ matrix.platform }} --release
+      - name: Package desktop artifact (unix)
+        if: runner.os != 'Windows'
+        working-directory: native
+        run: |
+          mkdir -p dist
+          ${{ matrix.package_cmd }}
+      - name: Package desktop artifact (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: native
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          ${{ matrix.package_cmd }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wax-ui-${{ matrix.platform }}
+          path: native/${{ matrix.artifact_path }}
+
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve Flutter dependencies
+        working-directory: native/app/flutter_ui
+        run: flutter pub get
+      - name: Build Android APK
+        working-directory: native/app/flutter_ui
+        run: flutter build apk --release
+      - name: Package APK
+        working-directory: native
+        run: |
+          mkdir -p dist
+          cp app/flutter_ui/build/app/outputs/flutter-apk/app-release.apk dist/wax-android-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wax-android-apk
+          path: native/dist/wax-android-release.apk
+
+  docker-headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/wax
+          tags: |
+            type=sha
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: native
+          file: native/docker/Dockerfile
+          load: true
+          tags: wax-headless:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Export Docker image tarball
+        run: |
+          mkdir -p native/dist
+          docker save wax-headless:${{ github.sha }} | gzip > native/dist/wax-headless-docker-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wax-headless-docker-image
+          path: native/dist/wax-headless-docker-image.tar.gz
+      - name: Login GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: native
+          file: native/docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/native-v') && (github.event_name == 'push' || github.event.inputs.publish_release == 'true')
+    needs: [headless-binaries, flutter-desktop, android-apk, docker-headless]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/**/*

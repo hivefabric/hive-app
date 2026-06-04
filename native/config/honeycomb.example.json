@@ -1,0 +1,11 @@
+{
+  "nodeId": "honeycomb-local-node",
+  "mode": "desktop",
+  "controlPlaneUrl": "ws://localhost:8080/ws/honeycomb",
+  "controlPlaneHttpUrl": "http://localhost:8080",
+  "authToken": "dev-hive-key",
+  "ownedHoneycomb": true,
+  "autoStartAgents": ["worker-default"],
+  "sdkCommand": "",
+  "sdkLibraryPath": ""
+}

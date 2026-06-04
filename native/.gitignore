@@ -1,0 +1,10 @@
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+app/flutter_ui/.dart_tool/
+app/flutter_ui/build/
+app/flutter_ui/.flutter-plugins
+app/flutter_ui/.flutter-plugins-dependencies

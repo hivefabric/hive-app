@@ -1,27 +1,16 @@
 {
-  "name": "hive-app",
+  "name": "hive-app-workspace",
+  "private": true,
   "version": "0.1.0",
-  "description": "HiveFabric user application — chat, hive management, models, settings",
-  "type": "module",
+  "description": "HiveFabric user app workspace: web app and native Wax runtime.",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "dompurify": "^3.4.7",
-    "lucide-react": "^0.446.0",
-    "marked": "^18.0.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/dompurify": "^3.0.5",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.2",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:preview": "npm --prefix web run preview",
+    "web:typecheck": "npm --prefix web run typecheck",
+    "native:deps": "cd native && dart pub get",
+    "native:test": "cd native && dart test",
+    "native:analyze": "cd native && dart analyze",
+    "native:format:check": "cd native && dart format --output=none --set-exit-if-changed ."
   }
 }

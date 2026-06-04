@@ -1,0 +1,46 @@
+name: Native CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "release/**", "hotfix/**"]
+    paths:
+      - "native/**"
+      - ".github/workflows/native-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "native/**"
+      - ".github/workflows/native-ci.yml"
+
+jobs:
+  runtime-dart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Resolve runtime dependencies
+        working-directory: native
+        run: dart pub get
+      - name: Dart format check
+        working-directory: native
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze runtime
+        working-directory: native
+        run: dart analyze
+      - name: Compile headless runtime
+        working-directory: native
+        run: dart compile exe headless_main.dart -o /tmp/wax-headless
+
+  flutter-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve Flutter dependencies
+        working-directory: native/app/flutter_ui
+        run: flutter pub get
+      - name: Analyze Flutter app
+        working-directory: native/app/flutter_ui
+        run: flutter analyze
