@@ -27,9 +27,14 @@ jobs:
       - name: Analyze runtime
         working-directory: native
         run: dart analyze
+      - name: Test runtime
+        working-directory: native
+        run: dart test
       - name: Compile headless runtime
         working-directory: native
-        run: dart compile exe headless_main.dart -o /tmp/wax-headless
+        run: |
+          mkdir -p build
+          dart compile exe headless_main.dart -o build/wax-headless
 
   flutter-ui:
     runs-on: ubuntu-latest

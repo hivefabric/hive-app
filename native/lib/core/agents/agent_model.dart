@@ -9,10 +9,12 @@ class AgentRuntime {
   final DateTime startedAt;
   final String status;
 
-  AgentRuntime copyWith({
-    String? status,
-  }) {
-    return AgentRuntime(id: id, startedAt: startedAt, status: status ?? this.status);
+  AgentRuntime copyWith({String? status}) {
+    return AgentRuntime(
+      id: id,
+      startedAt: startedAt,
+      status: status ?? this.status,
+    );
   }
 
   Map<String, Object?> toJson() => {

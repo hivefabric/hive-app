@@ -19,7 +19,11 @@ class AgentManager {
 
   Future<void> startAgent(String id) async {
     if (_running.containsKey(id)) return;
-    final runtime = AgentRuntime(id: id, startedAt: DateTime.now().toUtc(), status: 'running');
+    final runtime = AgentRuntime(
+      id: id,
+      startedAt: DateTime.now().toUtc(),
+      status: 'running',
+    );
     _running[id] = runtime;
     await repository.persistRuntime(runtime);
   }

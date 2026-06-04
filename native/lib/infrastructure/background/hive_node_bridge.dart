@@ -99,10 +99,12 @@ class HiveNodeBridge {
 
     final bootstrap = _sdkLibrary!
         .lookupFunction<_BootstrapPreviewNative, _BootstrapPreviewDart>(
-            'hive_node_bootstrap_preview');
-    final freeCString = _sdkLibrary!
-        .lookupFunction<_FreeCStringNative, _FreeCStringDart>(
-            'hive_node_free_string');
+      'hive_node_bootstrap_preview',
+    );
+    final freeCString =
+        _sdkLibrary!.lookupFunction<_FreeCStringNative, _FreeCStringDart>(
+      'hive_node_free_string',
+    );
 
     final configPtr = configPath.toNativeUtf8();
     final output = bootstrap(configPtr);
@@ -161,9 +163,11 @@ class HiveNodeBridge {
         .transform(const LineSplitter())
         .listen((line) => stderr.writeln('[hive-node][err] $line'));
 
-    unawaited(_headlessNodeProcess!.exitCode.then((code) {
-      stdout.writeln('[hive-node] process exited with code $code');
-    }));
+    unawaited(
+      _headlessNodeProcess!.exitCode.then((code) {
+        stdout.writeln('[hive-node] process exited with code $code');
+      }),
+    );
   }
 
   Future<void> stopNode() async {
@@ -302,8 +306,9 @@ class HiveNodeBridge {
   String _resolveNodeListenAddr() {
     final fromEnv = Platform.environment['HONEYCOMB_NODE_LISTEN_ADDR'];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
-    final fromDefine =
-        const String.fromEnvironment('HONEYCOMB_NODE_LISTEN_ADDR');
+    final fromDefine = const String.fromEnvironment(
+      'HONEYCOMB_NODE_LISTEN_ADDR',
+    );
     if (fromDefine.isNotEmpty) return fromDefine;
     return '0.0.0.0:7070';
   }
@@ -311,8 +316,9 @@ class HiveNodeBridge {
   String _resolveNodeApiBaseUrl(String listenAddr) {
     final fromEnv = Platform.environment['HONEYCOMB_NODE_API_BASE_URL'];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
-    final fromDefine =
-        const String.fromEnvironment('HONEYCOMB_NODE_API_BASE_URL');
+    final fromDefine = const String.fromEnvironment(
+      'HONEYCOMB_NODE_API_BASE_URL',
+    );
     if (fromDefine.isNotEmpty) return fromDefine;
 
     final parts = listenAddr.split(':');
@@ -340,7 +346,8 @@ class HiveNodeBridge {
         Platform.environment['HONEYCOMB_NODE_HEARTBEAT_INTERVAL_SECONDS'];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
     final fromDefine = const String.fromEnvironment(
-        'HONEYCOMB_NODE_HEARTBEAT_INTERVAL_SECONDS');
+      'HONEYCOMB_NODE_HEARTBEAT_INTERVAL_SECONDS',
+    );
     if (fromDefine.isNotEmpty) return fromDefine;
     // Faster default for local/operator UX while remaining safe for lease renewal.
     return '3';
@@ -362,16 +369,19 @@ class HiveNodeBridge {
       if (pid != null && await _isPidAlive(pid)) {
         final priorNodeId = prior['node_id'] ?? 'unknown';
         throw StateError(
-            'another honeycomb instance is already running on this device (pid=$pid, node_id=$priorNodeId).');
+          'another honeycomb instance is already running on this device (pid=$pid, node_id=$priorNodeId).',
+        );
       }
       await lockFile.delete();
     }
 
-    await lockFile.writeAsString(jsonEncode({
-      'pid': pid,
-      'node_id': nodeId,
-      'created_at': DateTime.now().toUtc().toIso8601String(),
-    }));
+    await lockFile.writeAsString(
+      jsonEncode({
+        'pid': pid,
+        'node_id': nodeId,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
     _deviceLockPath = lockPath;
   }
 
@@ -397,8 +407,9 @@ class HiveNodeBridge {
   String _resolveDeviceLockPath() {
     final fromEnv = Platform.environment['HONEYCOMB_DEVICE_LOCK_PATH'];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
-    final fromDefine =
-        const String.fromEnvironment('HONEYCOMB_DEVICE_LOCK_PATH');
+    final fromDefine = const String.fromEnvironment(
+      'HONEYCOMB_DEVICE_LOCK_PATH',
+    );
     if (fromDefine.isNotEmpty) return fromDefine;
     final home = Platform.environment['HOME'];
     if (home != null && home.isNotEmpty) {
@@ -437,7 +448,7 @@ class HiveNodeBridge {
           'containerd',
           'kubepods',
           'podman',
-          'lxc'
+          'lxc',
         ]) {
           if (cgroup.contains(marker)) return marker;
         }
@@ -451,8 +462,9 @@ class HiveNodeBridge {
   String? _configuredVirtualizationType() {
     final envVirt = Platform.environment['HONEYCOMB_VIRTUALIZATION_TYPE'];
     if (envVirt != null && envVirt.trim().isNotEmpty) return envVirt.trim();
-    final defineVirt =
-        const String.fromEnvironment('HONEYCOMB_VIRTUALIZATION_TYPE');
+    final defineVirt = const String.fromEnvironment(
+      'HONEYCOMB_VIRTUALIZATION_TYPE',
+    );
     if (defineVirt.isNotEmpty) return defineVirt.trim();
     return null;
   }

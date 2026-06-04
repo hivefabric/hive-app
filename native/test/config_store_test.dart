@@ -6,8 +6,9 @@ import 'package:test/test.dart';
 void main() {
   group('ConfigStore', () {
     test('loads config from json file', () async {
-      final tmp =
-          await Directory.systemTemp.createTemp('honeycomb-config-test');
+      final tmp = await Directory.systemTemp.createTemp(
+        'honeycomb-config-test',
+      );
       final file = File('${tmp.path}/config.json');
       await file.writeAsString('''
 {
@@ -43,14 +44,17 @@ void main() {
       expect(config.nodeId, equals('honeycomb-node'));
       expect(config.mode, equals('headless'));
       expect(
-          config.controlPlaneUrl, equals('ws://localhost:8080/ws/honeycomb'));
+        config.controlPlaneUrl,
+        equals('ws://localhost:8080/ws/honeycomb'),
+      );
       expect(config.sdkCommand, equals(''));
       expect(config.sdkLibraryPath, equals(''));
     });
 
     test('applies env overrides even without mode override', () async {
-      final tmp =
-          await Directory.systemTemp.createTemp('honeycomb-config-env-overlay');
+      final tmp = await Directory.systemTemp.createTemp(
+        'honeycomb-config-env-overlay',
+      );
       final file = File('${tmp.path}/config.json');
       await file.writeAsString('''
 {
@@ -79,8 +83,10 @@ void main() {
 
       expect(config.mode, equals('headless'));
       expect(config.controlPlaneHttpUrl, equals('http://192.168.1.171:8080'));
-      expect(config.controlPlaneUrl,
-          equals('ws://192.168.1.171:8080/ws/honeycomb'));
+      expect(
+        config.controlPlaneUrl,
+        equals('ws://192.168.1.171:8080/ws/honeycomb'),
+      );
       expect(config.authToken, equals('token-env'));
       expect(config.ownedHoneycomb, isFalse);
       expect(config.autoStartAgents, equals(['agent-a', 'agent-b']));

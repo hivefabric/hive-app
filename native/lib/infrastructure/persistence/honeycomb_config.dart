@@ -28,7 +28,8 @@ class HoneycombConfig {
         controlPlaneHttpUrl: json['controlPlaneHttpUrl'] as String,
         authToken: json['authToken'] as String,
         ownedHoneycomb: json['ownedHoneycomb'] as bool? ?? true,
-        autoStartAgents: (json['autoStartAgents'] as List<dynamic>? ?? const []).cast<String>(),
+        autoStartAgents: (json['autoStartAgents'] as List<dynamic>? ?? const [])
+            .cast<String>(),
         sdkCommand: json['sdkCommand'] as String? ?? '',
         sdkLibraryPath: json['sdkLibraryPath'] as String? ?? '',
       );

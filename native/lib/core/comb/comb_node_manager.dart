@@ -4,10 +4,7 @@ import '../../infrastructure/background/hive_node_bridge.dart';
 import 'comb_models.dart';
 
 class CombNodeManager {
-  CombNodeManager({
-    required this.bridge,
-    required this.nodeIdentity,
-  });
+  CombNodeManager({required this.bridge, required this.nodeIdentity});
 
   final HiveNodeBridge bridge;
   final NodeIdentity nodeIdentity;

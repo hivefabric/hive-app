@@ -56,8 +56,10 @@ class _FakeControlPlaneClient implements ControlPlaneClient {
   }
 
   @override
-  Future<void> sendRuntimeLog(String message,
-      {Map<String, Object?>? context}) async {}
+  Future<void> sendRuntimeLog(
+    String message, {
+    Map<String, Object?>? context,
+  }) async {}
 
   @override
   Future<void> startHeartbeat(Stream<NodeMetrics> metrics) async {

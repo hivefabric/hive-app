@@ -179,8 +179,10 @@ class _HoneycombAppState extends State<HoneycombApp> {
         notificationTitle: 'HiveFabric is contributing',
         notificationText: "You're in control. Tap to pause.",
         notificationImportance: AndroidNotificationImportance.normal,
-        notificationIcon:
-            AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+        notificationIcon: AndroidResource(
+          name: 'ic_launcher',
+          defType: 'mipmap',
+        ),
         enableWifiLock: true,
       ),
     );
@@ -250,8 +252,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
   /// 'honeycomb-node' default), respect it and persist that.
   Future<HoneycombConfig> _ensureStableNodeId(HoneycombConfig config) async {
     if (!(Platform.isAndroid || Platform.isIOS)) return config;
-    final defaultId = config.nodeId == 'honeycomb-node' ||
-        config.nodeId.isEmpty;
+    final defaultId =
+        config.nodeId == 'honeycomb-node' || config.nodeId.isEmpty;
     String resolved;
     if (defaultId) {
       resolved = await _store.getOrCreateNodeId();
@@ -339,24 +341,28 @@ class _HoneycombAppState extends State<HoneycombApp> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Runtime state: ${_state.name}',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Runtime state: ${_state.name}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         ElevatedButton(
                           onPressed:
                               _submittingHelloTask ? null : _submitHelloTask,
-                          child: Text(_submittingHelloTask
-                              ? 'Running...'
-                              : 'Run Hello Task'),
+                          child: Text(
+                            _submittingHelloTask
+                                ? 'Running...'
+                                : 'Run Hello Task',
+                          ),
                         ),
                         const SizedBox(width: 8),
                         OutlinedButton(
                           onPressed: _loadingTasks ? null : _refreshNodeTasks,
-                          child: Text(_loadingTasks
-                              ? 'Refreshing...'
-                              : 'Refresh Tasks'),
+                          child: Text(
+                            _loadingTasks ? 'Refreshing...' : 'Refresh Tasks',
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -420,15 +426,19 @@ class _HoneycombAppState extends State<HoneycombApp> {
                                 children: [
                                   const Padding(
                                     padding: EdgeInsets.all(12),
-                                    child: Text('Tasks on this node',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600)),
+                                    child: Text(
+                                      'Tasks on this node',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   const Divider(height: 1),
                                   Expanded(
                                     child: _nodeTasks.isEmpty
                                         ? const Center(
-                                            child: Text('No tasks yet'))
+                                            child: Text('No tasks yet'),
+                                          )
                                         : ListView.builder(
                                             itemCount: _nodeTasks.length,
                                             itemBuilder: (context, index) {
@@ -446,13 +456,15 @@ class _HoneycombAppState extends State<HoneycombApp> {
                                                   'status: $status  •  updated: ${task['updated_at'] ?? '-'}',
                                                 ),
                                                 trailing: const Icon(
-                                                    Icons.chevron_right),
+                                                  Icons.chevron_right,
+                                                ),
                                                 onTap: () =>
                                                     Navigator.of(context).push(
                                                   MaterialPageRoute(
                                                     builder: (_) =>
                                                         TaskDetailsPage(
-                                                            task: task),
+                                                      task: task,
+                                                    ),
                                                   ),
                                                 ),
                                               );
@@ -475,9 +487,12 @@ class _HoneycombAppState extends State<HoneycombApp> {
                                 children: [
                                   const Padding(
                                     padding: EdgeInsets.all(12),
-                                    child: Text('Runtime events',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600)),
+                                    child: Text(
+                                      'Runtime events',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   const Divider(height: 1),
                                   Expanded(
@@ -489,7 +504,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
                                           dense: true,
                                           title: Text(e.message),
                                           subtitle: Text(
-                                              '${e.kind} · ${e.timestamp.toIso8601String()}'),
+                                            '${e.kind} · ${e.timestamp.toIso8601String()}',
+                                          ),
                                         );
                                       },
                                     ),
@@ -532,8 +548,10 @@ class _HoneycombAppState extends State<HoneycombApp> {
                 _state == RuntimeState.failed
                     ? 'Honeycomb failed to start'
                     : 'Connecting Honeycomb',
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               Text('Status: $status'),
@@ -584,7 +602,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
                     onPressed:
                         _bootInProgress ? null : () => unawaited(_retryBoot()),
                     child: Text(
-                        _state == RuntimeState.failed ? 'Retry' : 'Reconnect'),
+                      _state == RuntimeState.failed ? 'Retry' : 'Reconnect',
+                    ),
                   ),
                   const SizedBox(width: 12),
                   OutlinedButton.icon(
@@ -625,8 +644,10 @@ class _HoneycombAppState extends State<HoneycombApp> {
             key: 'HONEYCOMB_CONTROL_PLANE_HTTP_URL',
             fallback: 'http://localhost:8080',
           );
-      final apiKey =
-          _env(key: 'HONEYCOMB_AUTH_TOKEN', fallback: 'dev-hive-key');
+      final apiKey = _env(
+        key: 'HONEYCOMB_AUTH_TOKEN',
+        fallback: 'dev-hive-key',
+      );
       final expectedApiBase = _env(
         key: 'HONEYCOMB_NODE_API_BASE_URL',
         fallback: 'http://host.docker.internal:7070',
@@ -639,7 +660,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
       final nodesBody = await utf8.decodeStream(nodesResp);
       if (nodesResp.statusCode < 200 || nodesResp.statusCode >= 300) {
         throw StateError(
-            'nodes request failed (${nodesResp.statusCode}): $nodesBody');
+          'nodes request failed (${nodesResp.statusCode}): $nodesBody',
+        );
       }
       final nodes = (jsonDecode(nodesBody) as List<dynamic>)
           .whereType<Map<String, dynamic>>()
@@ -656,7 +678,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
       final tasksBody = await utf8.decodeStream(tasksResp);
       if (tasksResp.statusCode < 200 || tasksResp.statusCode >= 300) {
         throw StateError(
-            'tasks request failed (${tasksResp.statusCode}): $tasksBody');
+          'tasks request failed (${tasksResp.statusCode}): $tasksBody',
+        );
       }
       final tasks = (jsonDecode(tasksBody) as List<dynamic>)
           .whereType<Map<String, dynamic>>()
@@ -669,9 +692,13 @@ class _HoneycombAppState extends State<HoneycombApp> {
               if (assigned == resolvedNodeId) return true;
               final logs = task['logs'];
               if (logs is List) {
-                return logs.any((entry) =>
-                    entry is String &&
-                    entry.contains('task assigned to node $resolvedNodeId'));
+                return logs.any(
+                  (entry) =>
+                      entry is String &&
+                      entry.contains(
+                        'task assigned to node $resolvedNodeId',
+                      ),
+                );
               }
               return false;
             }).toList(growable: false);
@@ -714,8 +741,10 @@ class _HoneycombAppState extends State<HoneycombApp> {
             key: 'HONEYCOMB_CONTROL_PLANE_HTTP_URL',
             fallback: 'http://localhost:8080',
           );
-      final apiKey =
-          _env(key: 'HONEYCOMB_AUTH_TOKEN', fallback: 'dev-hive-key');
+      final apiKey = _env(
+        key: 'HONEYCOMB_AUTH_TOKEN',
+        fallback: 'dev-hive-key',
+      );
       final taskId = _uuidV4();
 
       final payload = {
@@ -731,9 +760,9 @@ class _HoneycombAppState extends State<HoneycombApp> {
             'task': 'sunrise_sunset_today',
             'web_request': {
               'url':
-                  'https://api.sunrise-sunset.org/json?lat=40.4168&lng=-3.7038&formatted=0'
-            }
-          }
+                  'https://api.sunrise-sunset.org/json?lat=40.4168&lng=-3.7038&formatted=0',
+            },
+          },
         },
         'required_capabilities': {
           'cpu_cores': 1,
@@ -744,8 +773,9 @@ class _HoneycombAppState extends State<HoneycombApp> {
       };
 
       final client = HttpClient();
-      final createReq =
-          await client.postUrl(Uri.parse('$controlPlaneBase/api/tasks/create'));
+      final createReq = await client.postUrl(
+        Uri.parse('$controlPlaneBase/api/tasks/create'),
+      );
       createReq.headers.contentType = ContentType.json;
       createReq.headers.set('x-api-key', apiKey);
       createReq.write(jsonEncode(payload));
@@ -753,7 +783,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
       final createBody = await utf8.decodeStream(createResp);
       if (createResp.statusCode < 200 || createResp.statusCode >= 300) {
         throw StateError(
-            'task create failed (${createResp.statusCode}): $createBody');
+          'task create failed (${createResp.statusCode}): $createBody',
+        );
       }
 
       setState(() {
@@ -768,7 +799,9 @@ class _HoneycombAppState extends State<HoneycombApp> {
         taskId: taskId,
       );
       setState(() => _helloTaskStatus = status);
-      if (status == 'succeeded' || status == 'failed' || status == 'timed_out') {
+      if (status == 'succeeded' ||
+          status == 'failed' ||
+          status == 'timed_out') {
         final task = await _fetchTaskById(
           client: client,
           baseUrl: controlPlaneBase,
@@ -865,10 +898,7 @@ class _HoneycombAppState extends State<HoneycombApp> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 8),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 8)),
     );
   }
 
@@ -890,14 +920,18 @@ class _HoneycombAppState extends State<HoneycombApp> {
       return runtime;
     }
     final compileTime = switch (key) {
-      'HONEYCOMB_CONTROL_PLANE_HTTP_URL' =>
-        const String.fromEnvironment('HONEYCOMB_CONTROL_PLANE_HTTP_URL'),
-      'HONEYCOMB_AUTH_TOKEN' =>
-        const String.fromEnvironment('HONEYCOMB_AUTH_TOKEN'),
-      'HONEYCOMB_DEMO_WASM_PATH' =>
-        const String.fromEnvironment('HONEYCOMB_DEMO_WASM_PATH'),
-      'HONEYCOMB_NODE_API_BASE_URL' =>
-        const String.fromEnvironment('HONEYCOMB_NODE_API_BASE_URL'),
+      'HONEYCOMB_CONTROL_PLANE_HTTP_URL' => const String.fromEnvironment(
+          'HONEYCOMB_CONTROL_PLANE_HTTP_URL',
+        ),
+      'HONEYCOMB_AUTH_TOKEN' => const String.fromEnvironment(
+          'HONEYCOMB_AUTH_TOKEN',
+        ),
+      'HONEYCOMB_DEMO_WASM_PATH' => const String.fromEnvironment(
+          'HONEYCOMB_DEMO_WASM_PATH',
+        ),
+      'HONEYCOMB_NODE_API_BASE_URL' => const String.fromEnvironment(
+          'HONEYCOMB_NODE_API_BASE_URL',
+        ),
       _ => '',
     };
     return compileTime.isNotEmpty ? compileTime : fallback;
@@ -920,7 +954,8 @@ class _HoneycombAppState extends State<HoneycombApp> {
       if (_isLoopbackHost(host) && _isDevDiscoveryEnabled()) {
         if (mounted) {
           setState(
-              () => _bootProgress = 'scanning local network for control plane');
+            () => _bootProgress = 'scanning local network for control plane',
+          );
         }
         final httpUri = Uri.tryParse(config.controlPlaneHttpUrl);
         final port =
@@ -937,10 +972,7 @@ class _HoneycombAppState extends State<HoneycombApp> {
     final resolvedHttp = _replaceHost(config.controlPlaneHttpUrl, overrideHost);
     final resolvedAuthToken = config.authToken.isNotEmpty
         ? config.authToken
-        : _env(
-            key: 'HONEYCOMB_AUTH_TOKEN',
-            fallback: 'dev-hive-key',
-          );
+        : _env(key: 'HONEYCOMB_AUTH_TOKEN', fallback: 'dev-hive-key');
 
     _resolvedControlPlaneWsUrl = resolvedWs;
     _resolvedControlPlaneHttpUrl = resolvedHttp;
@@ -963,9 +995,9 @@ class _HoneycombAppState extends State<HoneycombApp> {
         Platform.environment['HONEYCOMB_DEV_SCAN_LOCAL_NETWORK']?.toLowerCase();
     if (fromEnv == '0' || fromEnv == 'false' || fromEnv == 'no') return false;
     if (fromEnv == '1' || fromEnv == 'true' || fromEnv == 'yes') return true;
-    final fromDefine =
-        const String.fromEnvironment('HONEYCOMB_DEV_SCAN_LOCAL_NETWORK')
-            .toLowerCase();
+    final fromDefine = const String.fromEnvironment(
+      'HONEYCOMB_DEV_SCAN_LOCAL_NETWORK',
+    ).toLowerCase();
     if (fromDefine == '0' || fromDefine == 'false' || fromDefine == 'no') {
       return false;
     }
@@ -1029,11 +1061,15 @@ class _HoneycombAppState extends State<HoneycombApp> {
     final ordered = candidates.toList(growable: false);
     for (var i = 0; i < ordered.length; i += batchSize) {
       final batch = ordered.sublist(
-          i, i + batchSize > ordered.length ? ordered.length : i + batchSize);
-      final results = await Future.wait(batch.map((host) async {
-        final ok = await _probeHealth(host, port);
-        return ok ? host : null;
-      }));
+        i,
+        i + batchSize > ordered.length ? ordered.length : i + batchSize,
+      );
+      final results = await Future.wait(
+        batch.map((host) async {
+          final ok = await _probeHealth(host, port);
+          return ok ? host : null;
+        }),
+      );
       for (final host in results) {
         if (host != null) {
           return host;
@@ -1099,22 +1135,28 @@ class TaskDetailsPage extends StatelessWidget {
           _kv('Completed at', '${task['completed_at'] ?? '-'}'),
           _kv('Queue time (ms)', '${task['queue_time_ms'] ?? '-'}'),
           _kv('Execution time (ms)', '${task['execution_time_ms'] ?? '-'}'),
-          _kv('Retries',
-              '${task['retries'] ?? '-'} / ${task['max_retries'] ?? '-'}'),
+          _kv(
+            'Retries',
+            '${task['retries'] ?? '-'} / ${task['max_retries'] ?? '-'}',
+          ),
           _kv('Last error', '${task['last_error'] ?? '-'}'),
           const SizedBox(height: 16),
           const Text('Input', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           SelectableText(
-              const JsonEncoder.withIndent('  ').convert(task['input'])),
+            const JsonEncoder.withIndent('  ').convert(task['input']),
+          ),
           const SizedBox(height: 16),
           const Text('Output', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           SelectableText(
-              const JsonEncoder.withIndent('  ').convert(task['output'])),
+            const JsonEncoder.withIndent('  ').convert(task['output']),
+          ),
           const SizedBox(height: 16),
-          const Text('Lifecycle',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+            'Lifecycle',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 6),
           ...lifecycle.map((entry) {
             if (entry is! Map) return const SizedBox.shrink();
@@ -1122,18 +1164,21 @@ class TaskDetailsPage extends StatelessWidget {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text('${entry['state'] ?? '-'}'),
-              subtitle:
-                  Text('${entry['at'] ?? '-'}\n${entry['message'] ?? ''}'),
+              subtitle: Text(
+                '${entry['at'] ?? '-'}\n${entry['message'] ?? ''}',
+              ),
             );
           }),
           const SizedBox(height: 16),
           const Text('Logs', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          ...logs.map((line) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text('$line'),
-              )),
+          ...logs.map(
+            (line) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text('$line'),
+            ),
+          ),
         ],
       ),
     );
@@ -1146,9 +1191,12 @@ class TaskDetailsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-              width: 150,
-              child: Text(key,
-                  style: const TextStyle(fontWeight: FontWeight.w600))),
+            width: 150,
+            child: Text(
+              key,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
           Expanded(child: Text(value)),
         ],
       ),

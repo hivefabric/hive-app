@@ -13,20 +13,26 @@ Future<void> runHeadless({required String configPath}) async {
   final health = HealthServer(runtime: runtime);
 
   await runtime.initialize();
-  logger.info('waiting for control-plane connection', ctx: {
-    'mode': config.mode,
-    'node_id': config.nodeId,
-    'control_plane_url': config.controlPlaneUrl,
-  });
+  logger.info(
+    'waiting for control-plane connection',
+    ctx: {
+      'mode': config.mode,
+      'node_id': config.nodeId,
+      'control_plane_url': config.controlPlaneUrl,
+    },
+  );
   await runtime.start();
   await health.start();
 
-  logger.info('honeycomb runtime started', ctx: {
-    'mode': config.mode,
-    'node_id': config.nodeId,
-    'control_plane_url': config.controlPlaneUrl,
-    'health_port': health.port,
-  });
+  logger.info(
+    'honeycomb runtime started',
+    ctx: {
+      'mode': config.mode,
+      'node_id': config.nodeId,
+      'control_plane_url': config.controlPlaneUrl,
+      'health_port': health.port,
+    },
+  );
 
   final completer = Completer<void>();
   StreamSubscription<ProcessSignal>? sigterm;

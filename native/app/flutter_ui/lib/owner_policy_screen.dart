@@ -54,7 +54,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-            'Policy saved. New values are sent on the next register/heartbeat.'),
+          'Policy saved. New values are sent on the next register/heartbeat.',
+        ),
       ),
     );
   }
@@ -99,7 +100,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
           SwitchListTile(
             title: const Text('Only when charging'),
             subtitle: const Text(
-                'Refuse all foreign tasks while running on battery.'),
+              'Refuse all foreign tasks while running on battery.',
+            ),
             value: p.onlyWhenCharging,
             onChanged: (v) =>
                 setState(() => _policy = p.copyWith(onlyWhenCharging: v)),
@@ -107,7 +109,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
           SwitchListTile(
             title: const Text('Only on Wi-Fi'),
             subtitle: const Text(
-                'No tasks while on cellular / metered network. Heartbeats still flow.'),
+              'No tasks while on cellular / metered network. Heartbeats still flow.',
+            ),
             value: p.onlyOnWifi,
             onChanged: (v) =>
                 setState(() => _policy = p.copyWith(onlyOnWifi: v)),
@@ -123,7 +126,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
             value: p.batteryMinPercent.toDouble(),
             label: '${p.batteryMinPercent}%',
             onChanged: (v) => setState(
-                () => _policy = p.copyWith(batteryMinPercent: v.round())),
+              () => _policy = p.copyWith(batteryMinPercent: v.round()),
+            ),
           ),
           ListTile(
             title: const Text('Max CPU usage'),
@@ -167,7 +171,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
             value: p.quietHoursStart.toDouble(),
             label: _fmtHour(p.quietHoursStart),
             onChanged: (v) => setState(
-                () => _policy = p.copyWith(quietHoursStart: v.round())),
+              () => _policy = p.copyWith(quietHoursStart: v.round()),
+            ),
           ),
           ListTile(
             title: const Text('End hour'),
@@ -202,8 +207,11 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
                     } else {
                       set.remove(t);
                     }
-                    setState(() => _policy =
-                        p.copyWith(allowedSensitivity: set.toList()));
+                    setState(
+                      () => _policy = p.copyWith(
+                        allowedSensitivity: set.toList(),
+                      ),
+                    );
                   },
                 ),
             ],
@@ -213,7 +221,8 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
             controller: _blockedCapsCtl,
             decoration: const InputDecoration(
               labelText: 'Blocked capability URNs (comma-separated)',
-              hintText: 'urn:hive:capability:network.scan, urn:hive:capability:llm.large',
+              hintText:
+                  'urn:hive:capability:network.scan, urn:hive:capability:llm.large',
               border: OutlineInputBorder(),
             ),
           ),
@@ -230,9 +239,9 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
           const _SectionHeader('Daily quotas (0 = unlimited)'),
           ListTile(
             title: const Text('Max tasks per day'),
-            subtitle: Text(p.maxTasksPerDay == 0
-                ? 'unlimited'
-                : '${p.maxTasksPerDay}'),
+            subtitle: Text(
+              p.maxTasksPerDay == 0 ? 'unlimited' : '${p.maxTasksPerDay}',
+            ),
           ),
           Slider(
             min: 0,
@@ -240,14 +249,16 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
             divisions: 100,
             value: p.maxTasksPerDay.toDouble().clamp(0, 1000),
             label: p.maxTasksPerDay == 0 ? 'off' : '${p.maxTasksPerDay}',
-            onChanged: (v) => setState(
-                () => _policy = p.copyWith(maxTasksPerDay: v.round())),
+            onChanged: (v) =>
+                setState(() => _policy = p.copyWith(maxTasksPerDay: v.round())),
           ),
           ListTile(
             title: const Text('Max foreign-task minutes per day'),
-            subtitle: Text(p.maxForeignMinutesPerDay == 0
-                ? 'unlimited'
-                : '${p.maxForeignMinutesPerDay} min'),
+            subtitle: Text(
+              p.maxForeignMinutesPerDay == 0
+                  ? 'unlimited'
+                  : '${p.maxForeignMinutesPerDay} min',
+            ),
           ),
           Slider(
             min: 0,
@@ -257,8 +268,9 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
             label: p.maxForeignMinutesPerDay == 0
                 ? 'off'
                 : '${p.maxForeignMinutesPerDay}m',
-            onChanged: (v) => setState(() =>
-                _policy = p.copyWith(maxForeignMinutesPerDay: v.round())),
+            onChanged: (v) => setState(
+              () => _policy = p.copyWith(maxForeignMinutesPerDay: v.round()),
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -271,8 +283,7 @@ class _OwnerPolicyScreenState extends State<OwnerPolicyScreen> {
     );
   }
 
-  String _fmtHour(int h) =>
-      '${h.toString().padLeft(2, '0')}:00';
+  String _fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
 }
 
 class _SectionHeader extends StatelessWidget {

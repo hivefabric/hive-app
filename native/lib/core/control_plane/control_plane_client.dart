@@ -83,10 +83,7 @@ class WebSocketControlPlaneClient implements ControlPlaneClient {
       _retries = 0;
       _states.add(ControlPlaneConnectionState.connected);
 
-      _send({
-        'type': 'auth',
-        'token': authToken,
-      });
+      _send({'type': 'auth', 'token': authToken});
 
       _channelSubscription = channel.stream.listen(
         (event) {
@@ -186,15 +183,17 @@ class WebSocketControlPlaneClient implements ControlPlaneClient {
   }
 
   @override
-  Future<void> sendRuntimeLog(String message,
-      {Map<String, Object?>? context}) async {
+  Future<void> sendRuntimeLog(
+    String message, {
+    Map<String, Object?>? context,
+  }) async {
     _send({
       'type': 'runtime_log',
       'payload': {
         'message': message,
         'timestamp': DateTime.now().toUtc().toIso8601String(),
         if (context != null) 'context': context,
-      }
+      },
     });
   }
 
@@ -234,52 +233,56 @@ class WebSocketControlPlaneClient implements ControlPlaneClient {
       final req = await client.postUrl(uri);
       req.headers.set('x-api-key', authToken);
       req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'node_id': identity.nodeId,
-        'cpu_cores': identity.cpuCores ?? 1,
-        'memory_mb': identity.memoryMb ?? 1024,
-        'available_memory_mb': identity.memoryMb ?? 1024,
-        'llm_profiles': identity.llmProfiles,
-        'node_labels': identity.ownedHoneycomb ? ['owned'] : ['shared'],
-        'docker': _runningInContainer(),
-        'wasm': true,
-        'node_api_base_url':
-            Platform.environment['HONEYCOMB_NODE_API_BASE_URL'],
-        if (identity.acceleratorTier != null)
-          'accelerator_tier': identity.acceleratorTier,
-        if (identity.ownerPolicy != null) 'owner_policy': identity.ownerPolicy,
-        'node_metadata': {
-          'platform_family': identity.platform,
-          'architecture': identity.arch,
-          'operating_system': identity.platform,
-          if (identity.operatingSystemVersion != null)
-            'operating_system_version': identity.operatingSystemVersion,
-          if (identity.kernelVersion != null)
-            'kernel_version': identity.kernelVersion,
-          'device_name': identity.deviceName,
-          if (identity.hostname != null) 'hostname': identity.hostname,
-          if (identity.timezone != null) 'timezone': identity.timezone,
-          if (identity.locationHint != null)
-            'location_hint': identity.locationHint,
-          if (identity.deviceType != null) 'device_type': identity.deviceType,
-          'runtime_version': identity.runtimeVersion ?? 'honeycomb-dart',
-          if (identity.agentVersion != null)
-            'agent_version': identity.agentVersion,
-          if (identity.virtualizationType != null)
-            'virtualization_type': identity.virtualizationType,
-          if (identity.gpuDevices.isNotEmpty)
-            'gpu_devices': identity.gpuDevices,
+      req.write(
+        jsonEncode({
+          'node_id': identity.nodeId,
+          'cpu_cores': identity.cpuCores ?? 1,
+          'memory_mb': identity.memoryMb ?? 1024,
+          'available_memory_mb': identity.memoryMb ?? 1024,
+          'llm_profiles': identity.llmProfiles,
+          'node_labels': identity.ownedHoneycomb ? ['owned'] : ['shared'],
+          'docker': _runningInContainer(),
+          'wasm': true,
+          'node_api_base_url':
+              Platform.environment['HONEYCOMB_NODE_API_BASE_URL'],
           if (identity.acceleratorTier != null)
             'accelerator_tier': identity.acceleratorTier,
           if (identity.ownerPolicy != null)
             'owner_policy': identity.ownerPolicy,
-        },
-      }));
+          'node_metadata': {
+            'platform_family': identity.platform,
+            'architecture': identity.arch,
+            'operating_system': identity.platform,
+            if (identity.operatingSystemVersion != null)
+              'operating_system_version': identity.operatingSystemVersion,
+            if (identity.kernelVersion != null)
+              'kernel_version': identity.kernelVersion,
+            'device_name': identity.deviceName,
+            if (identity.hostname != null) 'hostname': identity.hostname,
+            if (identity.timezone != null) 'timezone': identity.timezone,
+            if (identity.locationHint != null)
+              'location_hint': identity.locationHint,
+            if (identity.deviceType != null) 'device_type': identity.deviceType,
+            'runtime_version': identity.runtimeVersion ?? 'honeycomb-dart',
+            if (identity.agentVersion != null)
+              'agent_version': identity.agentVersion,
+            if (identity.virtualizationType != null)
+              'virtualization_type': identity.virtualizationType,
+            if (identity.gpuDevices.isNotEmpty)
+              'gpu_devices': identity.gpuDevices,
+            if (identity.acceleratorTier != null)
+              'accelerator_tier': identity.acceleratorTier,
+            if (identity.ownerPolicy != null)
+              'owner_policy': identity.ownerPolicy,
+          },
+        }),
+      );
       final resp = await req.close();
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         final body = await utf8.decodeStream(resp);
         throw StateError(
-            'node register failed (${resp.statusCode}) via HTTP: $body');
+          'node register failed (${resp.statusCode}) via HTTP: $body',
+        );
       }
     } finally {
       client.close(force: true);
@@ -294,19 +297,21 @@ class WebSocketControlPlaneClient implements ControlPlaneClient {
       final req = await client.postUrl(uri);
       req.headers.set('x-api-key', authToken);
       req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'node_id': nodeId,
-        'timestamp': snapshot.timestamp.toIso8601String(),
-        'active_tasks': snapshot.activeAgents,
-        'cpu_usage_percent': snapshot.cpuUsagePercent,
-        'memory_usage_percent': snapshot.memoryUsagePercent,
-        if (snapshot.batteryPercent != null)
-          'battery_percent': snapshot.batteryPercent,
-        if (snapshot.privateIp != null) 'private_ip': snapshot.privateIp,
-        if (snapshot.publicIp != null) 'public_ip': snapshot.publicIp,
-        if (snapshot.sensorReadings.isNotEmpty)
-          'sensor_readings': snapshot.sensorReadings,
-      }));
+      req.write(
+        jsonEncode({
+          'node_id': nodeId,
+          'timestamp': snapshot.timestamp.toIso8601String(),
+          'active_tasks': snapshot.activeAgents,
+          'cpu_usage_percent': snapshot.cpuUsagePercent,
+          'memory_usage_percent': snapshot.memoryUsagePercent,
+          if (snapshot.batteryPercent != null)
+            'battery_percent': snapshot.batteryPercent,
+          if (snapshot.privateIp != null) 'private_ip': snapshot.privateIp,
+          if (snapshot.publicIp != null) 'public_ip': snapshot.publicIp,
+          if (snapshot.sensorReadings.isNotEmpty)
+            'sensor_readings': snapshot.sensorReadings,
+        }),
+      );
       final resp = await req.close();
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         await utf8.decodeStream(resp);
@@ -336,5 +341,7 @@ class ControlPlaneCommand {
 
   static ControlPlaneCommand fromJson(Map<String, dynamic> json) =>
       ControlPlaneCommand(
-          type: json['type'] as String? ?? 'unknown', payload: json);
+        type: json['type'] as String? ?? 'unknown',
+        payload: json,
+      );
 }

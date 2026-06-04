@@ -62,8 +62,11 @@ class DefaultHoneycombRuntime implements HoneycombRuntime {
     await controlPlaneClient.startHeartbeat(combNodeManager.metricsStream);
 
     _commandSubscription = controlPlaneClient.commands.listen((command) {
-      _emit('control-plane.command', 'Received control-plane command',
-          payload: command.payload);
+      _emit(
+        'control-plane.command',
+        'Received control-plane command',
+        payload: command.payload,
+      );
     });
 
     await agentManager.restoreAgents();
@@ -90,12 +93,14 @@ class DefaultHoneycombRuntime implements HoneycombRuntime {
   }
 
   void _emit(String kind, String message, {Map<String, Object?>? payload}) {
-    _events.add(RuntimeEvent(
-      kind: kind,
-      message: message,
-      timestamp: DateTime.now().toUtc(),
-      payload: payload,
-    ));
+    _events.add(
+      RuntimeEvent(
+        kind: kind,
+        message: message,
+        timestamp: DateTime.now().toUtc(),
+        payload: payload,
+      ),
+    );
   }
 
   Future<void> _waitForControlPlaneConnection() async {

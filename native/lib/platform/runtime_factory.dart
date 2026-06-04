@@ -198,10 +198,7 @@ String _resolveDeviceName(String fallbackNodeId) {
   return fallbackNodeId;
 }
 
-List<String> _inferLlmProfiles({
-  required int cpuCores,
-  required int memoryMb,
-}) {
+List<String> _inferLlmProfiles({required int cpuCores, required int memoryMb}) {
   if (cpuCores >= 8 && memoryMb >= 12 * 1024) {
     return const <String>['LLM'];
   }

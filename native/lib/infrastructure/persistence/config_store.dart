@@ -40,8 +40,10 @@ class ConfigStore {
       controlPlaneHttpUrl: fromEnv['HONEYCOMB_CONTROL_PLANE_HTTP_URL'] ??
           base.controlPlaneHttpUrl,
       authToken: fromEnv['HONEYCOMB_AUTH_TOKEN'] ?? base.authToken,
-      ownedHoneycomb:
-          _parseBool(fromEnv['HONEYCOMB_OWNED'], base.ownedHoneycomb),
+      ownedHoneycomb: _parseBool(
+        fromEnv['HONEYCOMB_OWNED'],
+        base.ownedHoneycomb,
+      ),
       autoStartAgents: _parseAgents(fromEnv['HONEYCOMB_AUTOSTART_AGENTS']) ??
           base.autoStartAgents,
       sdkCommand: fromEnv['HONEYCOMB_SDK_COMMAND'] ?? base.sdkCommand,
