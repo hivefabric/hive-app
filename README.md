@@ -18,6 +18,7 @@ npm run web:build
 ```
 
 The web app connects to `hive-tenant-gateway` on port `8090` and Honeycomb on port `8080`.
+Cloud model setup in Settings uses `hive-tenant-gateway` to store LLM provider keys, so the gateway must be running before you enter an OpenAI API key.
 
 ## Native
 

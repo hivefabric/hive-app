@@ -17,6 +17,10 @@ import type {
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8090';
 
+function gatewayUnavailableMessage(): string {
+  return `Could not reach the tenant gateway at ${GATEWAY}. Start hive-tenant-gateway on port 8090, or set VITE_GATEWAY_URL to the correct address.`;
+}
+
 function getToken(): string {
   return localStorage.getItem('hf_token') ?? '';
 }
@@ -222,19 +226,29 @@ export async function enrollComb(
 // ─── LLM Providers ───────────────────────────────────────────────────────────
 
 export async function getLLMProviders(): Promise<LLMProvider[]> {
-  const res = await fetch(`${GATEWAY}/v1/me/llm-providers`, {
-    headers: authHeaders(),
-  });
-  return handleResponse<LLMProvider[]>(res);
+  try {
+    const res = await fetch(`${GATEWAY}/v1/me/llm-providers`, {
+      headers: authHeaders(),
+    });
+    return handleResponse<LLMProvider[]>(res);
+  } catch (err) {
+    if (err instanceof TypeError) throw new Error(gatewayUnavailableMessage());
+    throw err;
+  }
 }
 
 export async function createLLMProvider(req: CreateLLMProviderRequest): Promise<LLMProvider> {
-  const res = await fetch(`${GATEWAY}/v1/me/llm-providers`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(req),
-  });
-  return handleResponse<LLMProvider>(res);
+  try {
+    const res = await fetch(`${GATEWAY}/v1/me/llm-providers`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(req),
+    });
+    return handleResponse<LLMProvider>(res);
+  } catch (err) {
+    if (err instanceof TypeError) throw new Error(gatewayUnavailableMessage());
+    throw err;
+  }
 }
 
 export async function deleteLLMProvider(id: string): Promise<void> {
@@ -250,19 +264,29 @@ export async function deleteLLMProvider(id: string): Promise<void> {
 // ─── Preferences ─────────────────────────────────────────────────────────────
 
 export async function getPreferences(): Promise<UserPreferences> {
-  const res = await fetch(`${GATEWAY}/v1/me/preferences`, {
-    headers: authHeaders(),
-  });
-  return handleResponse<UserPreferences>(res);
+  try {
+    const res = await fetch(`${GATEWAY}/v1/me/preferences`, {
+      headers: authHeaders(),
+    });
+    return handleResponse<UserPreferences>(res);
+  } catch (err) {
+    if (err instanceof TypeError) throw new Error(gatewayUnavailableMessage());
+    throw err;
+  }
 }
 
 export async function updatePreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
-  const res = await fetch(`${GATEWAY}/v1/me/preferences`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(prefs),
-  });
-  return handleResponse<UserPreferences>(res);
+  try {
+    const res = await fetch(`${GATEWAY}/v1/me/preferences`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(prefs),
+    });
+    return handleResponse<UserPreferences>(res);
+  } catch (err) {
+    if (err instanceof TypeError) throw new Error(gatewayUnavailableMessage());
+    throw err;
+  }
 }
 
 // ─── Model Catalog ────────────────────────────────────────────────────────────
